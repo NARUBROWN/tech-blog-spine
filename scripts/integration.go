@@ -97,6 +97,9 @@ func run() error {
 		}
 		defer r.Body.Close()
 		v, _ := io.ReadAll(r.Body)
+		if !strings.Contains(r.Header.Get("Server-Timing"), "app;dur=") {
+			return nil, fmt.Errorf("서버 처리 시간 헤더 누락: %s %s", method, path)
+		}
 		if r.StatusCode != want {
 			return nil, fmt.Errorf("%s %s status %d want %d: %s", method, path, r.StatusCode, want, v)
 		}
@@ -446,5 +449,104 @@ func analyticsIntegration(base string, admin, normal *http.Client, postID int64)
 		return fmt.Errorf("링크 비밀값이 기록됐습니다")
 	}
 	fmt.Println("계측 HTTP 검증 통과: 관리자 API 401/403, 익명 방문자 중복 제거, 관리자 방문 제외, 평균 체류, 문장 선택/클릭 집계, 이벤트 재전송 중복 방지, 다른 방문자 접근 거부, URL 비밀값 제거")
+	return performanceIntegration(base, admin, normal, anon, other, uuid(1))
+}
+
+func performanceIntegration(base string, admin, normal, visitor, stranger *http.Client, visitID string) error {
+	call := func(client *http.Client, method, path string, body any, status int) ([]byte, error) {
+		data, _ := json.Marshal(body)
+		req, _ := http.NewRequest(method, base+path, bytes.NewReader(data))
+		req.Header.Set("Content-Type", "application/json")
+		response, err := client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer response.Body.Close()
+		result, _ := io.ReadAll(response.Body)
+		if response.StatusCode != status {
+			return nil, fmt.Errorf("성능 API 상태 %d, 예상 %d: %s", response.StatusCode, status, result)
+		}
+		return result, nil
+	}
+	endpoint := "/api/v1/admin/analytics/performance?days=30"
+	if _, err := call(visitor, "GET", endpoint, nil, 401); err != nil {
+		return err
+	}
+	if _, err := call(normal, "GET", endpoint, nil, 403); err != nil {
+		return err
+	}
+	if _, err := call(admin, "GET", "/api/v1/admin/analytics/performance?days=2", nil, 400); err != nil {
+		return err
+	}
+	empty, err := call(admin, "GET", endpoint, nil, 200)
+	if err != nil {
+		return err
+	}
+	if !strings.Contains(string(empty), `"summary":[]`) {
+		return fmt.Errorf("성능 빈 집계 오류: %s", empty)
+	}
+	sample := func(i int, value float64, revision int) map[string]any {
+		return map[string]any{"id": fmt.Sprintf("00000000-0000-4000-8000-%012d", 1000+i), "metric": "api_response", "endpoint": "/api/v1/post", "durationMs": value, "statusCode": 200, "revision": revision}
+	}
+	collect := func(client *http.Client, samples []map[string]any, status int) error {
+		_, err := call(client, "POST", "/api/v1/analytics/events", map[string]any{"visitId": visitID, "performance": samples}, status)
+		return err
+	}
+	for start := 1; start <= 100; start += 20 {
+		samples := []map[string]any{}
+		for i := start; i < start+20; i++ {
+			p := sample(i, float64(i), 1)
+			if i == 100 {
+				p["statusCode"] = 500
+			}
+			samples = append(samples, p)
+		}
+		// 네트워크 재시도와 종료 시 재전송을 재현합니다.
+		for i := 0; i < 2; i++ {
+			if err := collect(visitor, samples, 200); err != nil {
+				return err
+			}
+		}
+	}
+	if err := collect(stranger, []map[string]any{sample(1, 800, 2)}, 404); err != nil {
+		return err
+	}
+	if err := collect(visitor, []map[string]any{sample(1, 0, 2)}, 200); err != nil {
+		return err
+	}
+	if err := collect(visitor, []map[string]any{sample(1, 999, 1)}, 200); err != nil {
+		return err
+	}
+	invalid := sample(101, 3, 1)
+	invalid["endpoint"] = "/api/v1/post?keyword=private"
+	if err := collect(visitor, []map[string]any{invalid}, 400); err != nil {
+		return err
+	}
+	if err := collect(visitor, []map[string]any{sample(101, -1, 1)}, 400); err != nil {
+		return err
+	}
+	data, err := call(admin, "GET", endpoint, nil, 200)
+	if err != nil {
+		return err
+	}
+	var out struct {
+		Summary []struct {
+			Metric                                string
+			Count, Errors                         int
+			AverageMs, P50Ms, P95Ms, P99Ms, MaxMs float64
+		}
+		Pages, Endpoints []any
+	}
+	if err := json.Unmarshal(data, &out); err != nil {
+		return err
+	}
+	if len(out.Summary) != 1 || len(out.Endpoints) != 1 || len(out.Pages) != 0 {
+		return fmt.Errorf("성능 분리 집계 오류: %s", data)
+	}
+	s := out.Summary[0]
+	if s.Metric != "api_response" || s.Count != 100 || s.Errors != 1 || s.AverageMs != 50.49 || s.P50Ms != 50 || s.P95Ms != 95 || s.P99Ms != 99 || s.MaxMs != 100 {
+		return fmt.Errorf("성능 백분위/재전송/최신값 처리 오류: %s", data)
+	}
+	fmt.Println("성능 HTTP 검증 통과: Server-Timing, 관리자 권한, 빈 집계, 100개 원시 표본 p50/p95/p99, 오류 응답 집계, 재전송 중복 제거, 최신 revision 반영, 타인 표본 거부, 검색어와 음수 차단")
 	return nil
 }

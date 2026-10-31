@@ -14,5 +14,6 @@ func Register(app spine.App) error {
 	app.Route("GET", "/api/v1/analytics/interest", (*AnalyticsController).Interest)
 	app.Route("GET", "/api/v1/admin/analytics", (*AnalyticsController).Dashboard)
 	app.Route("GET", "/api/v1/admin/analytics/events", (*AnalyticsController).Events)
+	app.Route("GET", "/api/v1/admin/analytics/performance", (*AnalyticsController).Performance)
 	return nil
 }

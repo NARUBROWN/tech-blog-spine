@@ -45,3 +45,15 @@ func (c *AnalyticsController) Events(ctx context.Context, q query.Values, sc spi
 	out, err := c.service.Events(ctx, int(q.Int("days", 30)), int(q.Int("page", 0)), q.Get("type"))
 	return httpx.Response[EventPage]{Body: out, Options: httpx.ResponseOptions{Headers: map[string]string{"Cache-Control": "no-store"}}}, err
 }
+
+func (c *AnalyticsController) Performance(ctx context.Context, q query.Values, sc spinecontext.Ctx) (httpx.Response[PerformanceDashboard], error) {
+	id, err := security.IdentityFromContext(sc)
+	if err != nil {
+		return httpx.Response[PerformanceDashboard]{}, err
+	}
+	if err = c.service.Admin(ctx, id); err != nil {
+		return httpx.Response[PerformanceDashboard]{}, err
+	}
+	out, err := c.service.Performance(ctx, int(q.Int("days", 30)))
+	return httpx.Response[PerformanceDashboard]{Body: out, Options: httpx.ResponseOptions{Headers: map[string]string{"Cache-Control": "no-store"}}}, err
+}

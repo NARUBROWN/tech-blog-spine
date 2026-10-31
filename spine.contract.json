@@ -55,35 +55,35 @@
     },
     {
       "target": "NewConfig",
-      "source": "internal/application/application.go:104"
+      "source": "internal/application/application.go:105"
     },
     {
       "target": "ProvideMySQLStore",
       "dependencies": [
         "config.Config"
       ],
-      "source": "internal/application/application.go:104"
+      "source": "internal/application/application.go:105"
     },
     {
       "target": "ProvideRedisRefreshTokenStore",
       "dependencies": [
         "config.Config"
       ],
-      "source": "internal/application/application.go:104"
+      "source": "internal/application/application.go:105"
     },
     {
       "target": "ProvideTokenManager",
       "dependencies": [
         "config.Config"
       ],
-      "source": "internal/application/application.go:104"
+      "source": "internal/application/application.go:105"
     },
     {
       "target": "ProvideImageStorage",
       "dependencies": [
         "config.Config"
       ],
-      "source": "internal/application/application.go:104"
+      "source": "internal/application/application.go:105"
     },
     {
       "target": "ProvideBlogService",
@@ -93,7 +93,7 @@
         "*security.TokenManager",
         "*blog.ImageStorage"
       ],
-      "source": "internal/application/application.go:104"
+      "source": "internal/application/application.go:105"
     },
     {
       "target": "ProvideAuthInterceptor",
@@ -101,14 +101,18 @@
         "*security.TokenManager",
         "*security.RedisRefreshTokenStore"
       ],
-      "source": "internal/application/application.go:104"
+      "source": "internal/application/application.go:105"
     },
     {
       "target": "NewCORSInterceptor",
       "dependencies": [
         "config.Config"
       ],
-      "source": "internal/application/application.go:104"
+      "source": "internal/application/application.go:105"
+    },
+    {
+      "target": "NewTimingInterceptor",
+      "source": "internal/application/application.go:105"
     },
     {
       "target": "NewImagesController",
@@ -154,7 +158,7 @@
     },
     {
       "target": "NewHealthController",
-      "source": "internal/application/application.go:134"
+      "source": "internal/application/application.go:137"
     }
   ],
   "http": [
@@ -271,6 +275,33 @@
         "error"
       ],
       "source": "src/analytics/analytics_route.go:16"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/analytics/performance",
+      "handler": "(*AnalyticsController).Performance",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "q",
+          "type": "query.Values",
+          "binding": "query"
+        },
+        {
+          "name": "sc",
+          "type": "spinecontext.Ctx",
+          "binding": "value"
+        }
+      ],
+      "returns": [
+        "httpx.Response[PerformanceDashboard]",
+        "error"
+      ],
+      "source": "src/analytics/analytics_route.go:17"
     },
     {
       "method": "GET",
@@ -542,7 +573,7 @@
       "returns": [
         "httpx.Response[map[string]string]"
       ],
-      "source": "internal/application/application.go:135"
+      "source": "internal/application/application.go:138"
     },
     {
       "method": "PATCH",
@@ -974,14 +1005,19 @@
   ],
   "interceptors": [
     {
+      "target": "(*telemetry.TimingInterceptor)(nil)",
+      "scope": "boot.InterceptorHTTP",
+      "source": "internal/application/application.go:116"
+    },
+    {
       "target": "(*cors.CORSInterceptor)(nil)",
       "scope": "boot.InterceptorHTTP",
-      "source": "internal/application/application.go:114"
+      "source": "internal/application/application.go:117"
     },
     {
       "target": "(*security.AuthInterceptor)(nil)",
       "scope": "boot.InterceptorHTTP",
-      "source": "internal/application/application.go:115"
+      "source": "internal/application/application.go:118"
     }
   ],
   "consumers": [],
@@ -990,64 +1026,64 @@
     {
       "package": "analytics",
       "import": "github.com/NARUBROWN/tech-blog-spine/src/analytics",
-      "source": "internal/application/application.go:98"
+      "source": "internal/application/application.go:99"
     },
     {
       "package": "auth",
       "import": "github.com/NARUBROWN/tech-blog-spine/src/auth",
-      "source": "internal/application/application.go:131"
+      "source": "internal/application/application.go:134"
     },
     {
       "package": "categories",
       "import": "github.com/NARUBROWN/tech-blog-spine/src/categories",
-      "source": "internal/application/application.go:122"
+      "source": "internal/application/application.go:125"
     },
     {
       "package": "comments",
       "import": "github.com/NARUBROWN/tech-blog-spine/src/comments",
-      "source": "internal/application/application.go:101"
+      "source": "internal/application/application.go:102"
     },
     {
       "package": "images",
       "import": "github.com/NARUBROWN/tech-blog-spine/src/images",
-      "source": "internal/application/application.go:116"
+      "source": "internal/application/application.go:119"
     },
     {
       "package": "likes",
       "import": "github.com/NARUBROWN/tech-blog-spine/src/likes",
-      "source": "internal/application/application.go:119"
+      "source": "internal/application/application.go:122"
     },
     {
       "package": "posts",
       "import": "github.com/NARUBROWN/tech-blog-spine/src/posts",
-      "source": "internal/application/application.go:125"
+      "source": "internal/application/application.go:128"
     },
     {
       "package": "users",
       "import": "github.com/NARUBROWN/tech-blog-spine/src/users",
-      "source": "internal/application/application.go:128"
+      "source": "internal/application/application.go:131"
     }
   ],
   "configuration": [
     {
       "path": "boot.Options.Address",
       "value": "address",
-      "source": "internal/application/application.go:142"
+      "source": "internal/application/application.go:145"
     },
     {
       "path": "boot.Options.EnableGracefulShutdown",
       "value": "true",
-      "source": "internal/application/application.go:143"
+      "source": "internal/application/application.go:146"
     },
     {
       "path": "boot.Options.HTTP.MaxBodyBytes",
       "value": "21 \u003c\u003c 20",
-      "source": "internal/application/application.go:144"
+      "source": "internal/application/application.go:147"
     },
     {
       "path": "boot.Options.HTTP",
       "value": "configured",
-      "source": "internal/application/application.go:144"
+      "source": "internal/application/application.go:147"
     }
   ],
   "diagnostics": []

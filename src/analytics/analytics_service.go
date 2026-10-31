@@ -56,10 +56,11 @@ type EventRequest struct {
 	DurationMs int64  `json:"durationMs"`
 }
 type BatchRequest struct {
-	VisitID     string         `json:"visitId"`
-	ActiveMs    int64          `json:"activeMs"`
-	ScrollDepth int            `json:"scrollDepth"`
-	Events      []EventRequest `json:"events"`
+	VisitID     string              `json:"visitId"`
+	ActiveMs    int64               `json:"activeMs"`
+	ScrollDepth int                 `json:"scrollDepth"`
+	Events      []EventRequest      `json:"events"`
+	Performance []PerformanceSample `json:"performance"`
 }
 
 var uuidPattern = regexp.MustCompile(`^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$`)
@@ -288,7 +289,7 @@ func (s *AnalyticsService) Collect(ctx context.Context, h header.Values, r Batch
 	if err := s.origin(h); err != nil {
 		return err
 	}
-	if !uuidPattern.MatchString(r.VisitID) || len(r.Events) > 20 || r.ActiveMs < 0 {
+	if !uuidPattern.MatchString(r.VisitID) || len(r.Events) > 20 || len(r.Performance) > 20 || r.ActiveMs < 0 {
 		return bad(400, "올바르지 않은 계측 요청입니다.")
 	}
 	visitor, _, err := s.visitor(h, false)
@@ -349,6 +350,15 @@ func (s *AnalyticsService) Collect(ctx context.Context, h header.Values, r Batch
 		}
 		// 이벤트 ID를 전역으로 고유하게 유지해 heartbeat와 종료 시 재전송도 중복 집계하지 않습니다.
 		if _, err = tx.ExecContext(ctx, `INSERT IGNORE INTO analytics_event(id,visit_id,event_type,label,target_url,selected_text,context_text,section_name,duration_ms) VALUES (?,?,?,?,?,?,?,?,?)`, e.ID, r.VisitID, e.Type, short(e.Label, 120), target, text, contextText, short(e.Section, 80), duration); err != nil {
+			return err
+		}
+	}
+	for _, sample := range r.Performance {
+		if err := validatePerformance(sample); err != nil {
+			return err
+		}
+		// 같은 표본의 재전송은 중복 집계하지 않고 더 최신 측정값만 반영합니다.
+		if _, err = tx.ExecContext(ctx, `INSERT INTO analytics_performance(id,visit_id,metric,endpoint,duration_ms,status_code,revision) VALUES (?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE duration_ms=IF(VALUES(revision)>revision,VALUES(duration_ms),duration_ms),revision=GREATEST(revision,VALUES(revision))`, sample.ID, r.VisitID, sample.Metric, sample.Endpoint, sample.DurationMs, sample.StatusCode, sample.Revision); err != nil {
 			return err
 		}
 	}

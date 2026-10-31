@@ -39,8 +39,11 @@ func Feedback(db *sql.DB) error {
 //go:embed 003_analytics.sql
 var analyticsSchema string
 
+//go:embed 004_performance.sql
+var performanceSchema string
+
 func Analytics(db *sql.DB) error {
-	for _, statement := range strings.Split(analyticsSchema, ";") {
+	for _, statement := range strings.Split(analyticsSchema+";"+performanceSchema, ";") {
 		statement = strings.TrimSpace(statement)
 		if statement == "" {
 			continue

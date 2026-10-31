@@ -11,6 +11,7 @@ import (
 	"github.com/NARUBROWN/tech-blog-spine/internal/config"
 	"github.com/NARUBROWN/tech-blog-spine/internal/security"
 	"github.com/NARUBROWN/tech-blog-spine/internal/store"
+	"github.com/NARUBROWN/tech-blog-spine/internal/telemetry"
 	analytics "github.com/NARUBROWN/tech-blog-spine/src/analytics"
 	auth "github.com/NARUBROWN/tech-blog-spine/src/auth"
 	categories "github.com/NARUBROWN/tech-blog-spine/src/categories"
@@ -110,7 +111,9 @@ func BuildApplication() (spine.App, boot.Options, error) {
 		ProvideBlogService,
 		ProvideAuthInterceptor,
 		NewCORSInterceptor,
+		telemetry.NewTimingInterceptor,
 	)
+	app.InterceptorFor(boot.InterceptorHTTP, (*telemetry.TimingInterceptor)(nil))
 	app.InterceptorFor(boot.InterceptorHTTP, (*cors.CORSInterceptor)(nil))
 	app.InterceptorFor(boot.InterceptorHTTP, (*security.AuthInterceptor)(nil))
 	if err := images.Register(app); err != nil {
