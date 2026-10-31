@@ -54,7 +54,7 @@ jobs:
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o dist/migrate ./cmd/migrate
       - name: MySQL 및 Redis 통합 검증
         run: |
-          docker exec ${{ job.services.mysql.id }} sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot blog_test' < migrations/001_init.sql
+          docker exec -i ${{ job.services.mysql.id }} sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot blog_test' < migrations/001_init.sql
           go run ./scripts/integration.go
       - name: 배포 파일 준비
         run: |
