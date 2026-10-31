@@ -42,7 +42,7 @@ port=18080
 name="blog-spine-$port"
 docker rm -f "$name" >/dev/null 2>&1 || true
 docker run -d --name "$name" --restart unless-stopped --env-file "$root/runtime.env" -p "127.0.0.1:$port:8080" -v "$image_dir:/app/images" "$image" >/dev/null
-nginx_file=$(grep -rl 'proxy_pass http://127.0.0.1:' /etc/nginx/sites-enabled | head -1)
+nginx_file=$(grep -Rl 'proxy_pass http://127.0.0.1:' /etc/nginx/sites-enabled | head -1)
 [[ -n $nginx_file ]] || { docker rm -f "$name"; exit 1; }
 backup="$root/nginx-before-$sha.conf"
 cp -L "$nginx_file" "$backup"
