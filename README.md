@@ -128,3 +128,7 @@ main push는 단위 테스트, race/vet/포맷 검사, 실제 MySQL 8.0 및 Redi
 배포 스크립트는 기존 이미지 바인드 마운트를 유지하고 권한 enum에 ROLE_AUTHOR만 추가합니다. 새 포트를 검사한 다음 Nginx를 전환하며, 전환 실패 시 이전 설정으로 복구합니다. 성공 전에는 이전 컨테이너를 중지하지 않습니다. `/health` 외에 게시글 목록과 검색의 DB 조회도 검사합니다. 누락된 기존 이미지 31건의 메타데이터는 삭제하지 않습니다. 사용자가 확인한 원인은 과거 컨테이너 이미지 저장소의 마운트 누락입니다.
 
 운영 상태: `/home/ubuntu/blog-spine/active-sha`, `active-port`. 릴리스: `/home/ubuntu/blog-spine/releases/<commit>`. 이전 Java 컨테이너 `blog-backend`와 원래 compose는 롤백용으로 보존합니다. 수동 롤백 시 Java 컨테이너를 시작하고 Nginx upstream을 8080으로 복원한 뒤 `nginx -t`와 reload를 실행합니다. DB를 과거 백업으로 덮어쓰지 않습니다.
+
+최초 운영 전환에서는 DB 관리자 연결로 기존 enum의 순서를 유지한 채 ROLE_AUTHOR만 추가했습니다. 운영 앱 계정은 SELECT/INSERT/UPDATE/DELETE 권한을 유지합니다. 이후 배포의 migrate 명령은 이미 준비된 권한 스키마를 확인하며 재실행해도 데이터를 바꾸지 않습니다. 새 환경의 최초 enum 변경에 ALTER 권한이 없으면 DB 관리자 단계에서 먼저 적용해야 합니다.
+
+Nginx 전환 직후 검증은 올바른 TLS 호스트명을 유지하면서 로컬 Nginx로 직접 연결합니다. 서버의 공인 IP로 되돌아가는 경로에 의존하지 않으며, 별도로 외부 클라이언트에서 공개 API를 확인합니다.

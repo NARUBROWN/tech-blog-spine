@@ -68,7 +68,7 @@ PY
 sed -i "s|127.0.0.1:$old_port/api/|127.0.0.1:$port/api/|g" "$nginx_file"
 nginx -t
 systemctl reload nginx
-curl -fsS 'https://api.na2ru2.me/api/v1/post?page=0&size=1' >/dev/null
+curl -fsS --retry 3 --resolve api.na2ru2.me:443:127.0.0.1 'https://api.na2ru2.me/api/v1/post?page=0&size=1' >/dev/null
 printf '%s\n' "$port" > "$root/active-port"
 printf '%s\n' "$sha" > "$root/active-sha"
 trap - ERR
