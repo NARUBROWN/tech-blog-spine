@@ -68,7 +68,15 @@ PY
 sed -i "s|127.0.0.1:$old_port/api/|127.0.0.1:$port/api/|g" "$nginx_file"
 nginx -t
 systemctl reload nginx
-curl -fsS --retry 3 --resolve api.na2ru2.me:443:127.0.0.1 'https://api.na2ru2.me/api/v1/post?page=0&size=1' >/dev/null
+verified=false
+for attempt in $(seq 1 10); do
+ if curl -fsS --retry 3 --retry-all-errors --retry-delay 1 --max-time 10 --resolve api.na2ru2.me:443:127.0.0.1 'https://api.na2ru2.me/api/v1/post/search/recent?keyword=LLM&page=0&size=1' | python3 -c 'import json,sys;d=json.load(sys.stdin);assert isinstance(d,dict) and isinstance(d["content"],list) and "totalPages" in d'; then
+  verified=true
+  break
+ fi
+ sleep 1
+done
+[[ $verified == true ]]
 printf '%s\n' "$port" > "$root/active-port"
 printf '%s\n' "$sha" > "$root/active-sha"
 trap - ERR
