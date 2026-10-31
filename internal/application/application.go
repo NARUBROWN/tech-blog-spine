@@ -11,6 +11,7 @@ import (
 	"github.com/NARUBROWN/tech-blog-spine/internal/config"
 	"github.com/NARUBROWN/tech-blog-spine/internal/security"
 	"github.com/NARUBROWN/tech-blog-spine/internal/store"
+	analytics "github.com/NARUBROWN/tech-blog-spine/src/analytics"
 	auth "github.com/NARUBROWN/tech-blog-spine/src/auth"
 	categories "github.com/NARUBROWN/tech-blog-spine/src/categories"
 	comments "github.com/NARUBROWN/tech-blog-spine/src/comments"
@@ -94,6 +95,9 @@ func BuildApplication() (spine.App, boot.Options, error) {
 		return nil, boot.Options{}, err
 	}
 	app := spine.New()
+	if err := analytics.Register(app); err != nil {
+		return nil, boot.Options{}, err
+	}
 	if err := comments.Register(app); err != nil {
 		return nil, boot.Options{}, err
 	}

@@ -25,6 +25,11 @@ func main() {
 	}
 	defer db.Close()
 	defer func() {
+		if err := migrations.Analytics(db); err != nil {
+			log.Fatal("계측 테이블 준비 실패: ", err)
+		}
+	}()
+	defer func() {
 		if err := migrations.Feedback(db); err != nil {
 			log.Fatal("댓글 및 좋아요 마이그레이션 실패: ", err)
 		}

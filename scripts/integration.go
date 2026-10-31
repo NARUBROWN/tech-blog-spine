@@ -207,6 +207,9 @@ func run() error {
 	if profile.Role != "ROLE_ADMIN" {
 		return fmt.Errorf("프로필 role 유실")
 	}
+	if err = analyticsIntegration(base, admin, other, postID); err != nil {
+		return err
+	}
 	if err = feedbackIntegration(base, postID); err != nil {
 		return err
 	}
@@ -329,5 +332,119 @@ func feedbackIntegration(base string, postID int64) error {
 		return err
 	}
 	fmt.Println("익명 HTTP 검증 통과: 12개 동시 좋아요 1표, 중복 취소, 댓글 생성/수정/삭제, 비밀번호 실패, 비밀값 비노출, 쿠키 위조 거부")
+	return nil
+}
+
+func analyticsIntegration(base string, admin, normal *http.Client, postID int64) error {
+	jar, _ := cookiejar.New(nil)
+	anon := &http.Client{Jar: jar, Timeout: 10 * time.Second}
+	otherJar, _ := cookiejar.New(nil)
+	other := &http.Client{Jar: otherJar, Timeout: 10 * time.Second}
+	uuid := func(n int) string { return fmt.Sprintf("00000000-0000-4000-8000-%012d", n) }
+	call := func(client *http.Client, method, path string, body any, want int) ([]byte, error) {
+		b, _ := json.Marshal(body)
+		req, _ := http.NewRequest(method, base+path, bytes.NewReader(b))
+		req.Header.Set("Content-Type", "application/json")
+		r, err := client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer r.Body.Close()
+		data, _ := io.ReadAll(r.Body)
+		if r.StatusCode != want {
+			return nil, fmt.Errorf("analytics %s %s: %d want %d: %s", method, path, r.StatusCode, want, data)
+		}
+		return data, nil
+	}
+	if _, err := call(anon, "GET", "/api/v1/admin/analytics?days=30", nil, 401); err != nil {
+		return err
+	}
+	if _, err := call(normal, "GET", "/api/v1/admin/analytics?days=30", nil, 403); err != nil {
+		return err
+	}
+	visit := func(n int, path string) map[string]any {
+		return map[string]any{"id": uuid(n), "sessionId": uuid(100), "path": path, "referrer": "https://search.example/query?token=private", "device": "mobile"}
+	}
+	for _, item := range []struct {
+		n    int
+		path string
+	}{{1, "/about"}, {1, "/about"}, {2, "/about"}, {3, "/"}, {4, fmt.Sprintf("/post/share/%d", postID)}} {
+		if _, err := call(anon, "POST", "/api/v1/analytics/visits", visit(item.n, item.path), 200); err != nil {
+			return err
+		}
+	}
+	data, err := call(admin, "POST", "/api/v1/analytics/visits", visit(5, "/about"), 200)
+	if err != nil {
+		return err
+	}
+	var started struct{ Tracked bool }
+	_ = json.Unmarshal(data, &started)
+	if started.Tracked {
+		return fmt.Errorf("관리자 방문이 집계됐습니다")
+	}
+	if _, err = call(other, "POST", "/api/v1/analytics/visits", visit(6, "/"), 200); err != nil {
+		return err
+	}
+	batch := map[string]any{"visitId": uuid(1), "activeMs": 500, "scrollDepth": 75, "events": []map[string]any{
+		{"id": uuid(201), "type": "resume_selection", "text": "이력서에서 관심을 가진 공개 문장입니다", "context": "이 문장의 주변 문맥입니다", "section": "experience", "durationMs": 850},
+		{"id": uuid(202), "type": "snackbar_resume", "label": "자기소개서 보기"},
+		{"id": uuid(203), "type": "snackbar_linkedin", "label": "LinkedIn으로 연락하기"},
+		{"id": uuid(204), "type": "resume_outbound", "label": "Spine", "url": "https://github.com/NARUBROWN/spine?token=private#secret", "section": "personal-projects"},
+	}}
+	for i := 0; i < 2; i++ {
+		if _, err = call(anon, "POST", "/api/v1/analytics/events", batch, 200); err != nil {
+			return err
+		}
+	}
+	if _, err = call(other, "POST", "/api/v1/analytics/events", batch, 404); err != nil {
+		return err
+	}
+	invalid := map[string]any{"visitId": uuid(3), "events": []map[string]any{{"id": uuid(205), "type": "resume_selection", "text": "다른 페이지에서 선택한 문장입니다", "durationMs": 900}}}
+	if _, err = call(anon, "POST", "/api/v1/analytics/events", invalid, 400); err != nil {
+		return err
+	}
+	data, err = call(anon, "GET", "/api/v1/analytics/interest", nil, 200)
+	if err != nil {
+		return err
+	}
+	var interest struct{ Count int }
+	_ = json.Unmarshal(data, &interest)
+	if interest.Count != 1 {
+		return fmt.Errorf("이력서 방문자 중복 집계: %s", data)
+	}
+	data, err = call(admin, "GET", "/api/v1/admin/analytics?days=30", nil, 200)
+	if err != nil {
+		return err
+	}
+	var overview struct {
+		Summary struct{ Views, Visitors, Sessions, AverageActiveMs, ResumeViews, ResumeVisitors, ResumeClicks, LinkedInClicks, Selections, OutboundClicks int }
+		Daily   []any
+		Groups  []any
+	}
+	_ = json.Unmarshal(data, &overview)
+	m := overview.Summary
+	if m.Views != 5 || m.Visitors != 2 || m.Sessions != 2 || m.AverageActiveMs != 100 || m.ResumeViews != 2 || m.ResumeVisitors != 1 || m.ResumeClicks != 1 || m.LinkedInClicks != 1 || m.Selections != 1 || m.OutboundClicks != 1 || len(overview.Daily) != 30 || len(overview.Groups) != 4 {
+		return fmt.Errorf("계측 집계 불일치: %s", data)
+	}
+	data, err = call(admin, "GET", "/api/v1/admin/analytics/events?days=30&type=resume_selection&page=0", nil, 200)
+	if err != nil {
+		return err
+	}
+	var events struct {
+		TotalElements int
+		Content       []struct{ Text, Visitor string }
+	}
+	_ = json.Unmarshal(data, &events)
+	if events.TotalElements != 1 || len(events.Content) != 1 || events.Content[0].Text != "이력서에서 관심을 가진 공개 문장입니다" || len(events.Content[0].Visitor) != 10 {
+		return fmt.Errorf("문장 선택 조회 실패: %s", data)
+	}
+	data, err = call(admin, "GET", "/api/v1/admin/analytics/events?days=30&page=0", nil, 200)
+	if err != nil {
+		return err
+	}
+	if strings.Contains(string(data), "token=private") || strings.Contains(string(data), "#secret") {
+		return fmt.Errorf("링크 비밀값이 기록됐습니다")
+	}
+	fmt.Println("계측 HTTP 검증 통과: 관리자 API 401/403, 익명 방문자 중복 제거, 관리자 방문 제외, 평균 체류, 문장 선택/클릭 집계, 이벤트 재전송 중복 방지, 다른 방문자 접근 거부, URL 비밀값 제거")
 	return nil
 }

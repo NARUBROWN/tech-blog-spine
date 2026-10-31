@@ -35,3 +35,26 @@ func Feedback(db *sql.DB) error {
 	_, err = db.Exec(`UPDATE post p SET like_count=(SELECT COUNT(*) FROM post_reaction r WHERE r.post_id=p.post_id AND r.active=1)`)
 	return err
 }
+
+//go:embed 003_analytics.sql
+var analyticsSchema string
+
+func Analytics(db *sql.DB) error {
+	for _, statement := range strings.Split(analyticsSchema, ";") {
+		statement = strings.TrimSpace(statement)
+		if statement == "" {
+			continue
+		}
+		name := strings.Fields(statement)[5]
+		var exists int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME=?`, name).Scan(&exists); err != nil {
+			return err
+		}
+		if exists == 0 {
+			if _, err := db.Exec(statement); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}

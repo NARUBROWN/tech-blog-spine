@@ -1,6 +1,34 @@
 {
   "components": {
     "schemas": {
+      "BatchRequest": {
+        "properties": {
+          "activeMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/EventRequest"
+            },
+            "type": "array"
+          },
+          "scrollDepth": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "visitId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "activeMs",
+          "events",
+          "scrollDepth",
+          "visitId"
+        ],
+        "type": "object"
+      },
       "Category": {
         "properties": {
           "id": {
@@ -222,6 +250,252 @@
         ],
         "type": "object"
       },
+      "Daily": {
+        "properties": {
+          "date": {
+            "type": "string"
+          },
+          "views": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "visitors": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "views",
+          "visitors"
+        ],
+        "type": "object"
+      },
+      "Dashboard": {
+        "properties": {
+          "daily": {
+            "items": {
+              "$ref": "#/components/schemas/Daily"
+            },
+            "type": "array"
+          },
+          "devices": {
+            "items": {
+              "$ref": "#/components/schemas/SourceRow"
+            },
+            "type": "array"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/EventGroup"
+            },
+            "type": "array"
+          },
+          "pages": {
+            "items": {
+              "$ref": "#/components/schemas/PageRow"
+            },
+            "type": "array"
+          },
+          "posts": {
+            "items": {
+              "$ref": "#/components/schemas/PostRow"
+            },
+            "type": "array"
+          },
+          "referrers": {
+            "items": {
+              "$ref": "#/components/schemas/SourceRow"
+            },
+            "type": "array"
+          },
+          "retentionDays": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/Summary"
+          }
+        },
+        "required": [
+          "daily",
+          "devices",
+          "groups",
+          "pages",
+          "posts",
+          "referrers",
+          "retentionDays",
+          "summary"
+        ],
+        "type": "object"
+      },
+      "EventGroup": {
+        "properties": {
+          "averageDurationMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "context": {
+            "type": "string"
+          },
+          "count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          },
+          "section": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "visitors": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "averageDurationMs",
+          "context",
+          "count",
+          "label",
+          "section",
+          "text",
+          "type",
+          "url",
+          "visitors"
+        ],
+        "type": "object"
+      },
+      "EventPage": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/EventRow"
+            },
+            "type": "array"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "content",
+          "number",
+          "totalElements",
+          "totalPages"
+        ],
+        "type": "object"
+      },
+      "EventRequest": {
+        "properties": {
+          "context": {
+            "type": "string"
+          },
+          "durationMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "section": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "context",
+          "durationMs",
+          "id",
+          "label",
+          "section",
+          "text",
+          "type",
+          "url"
+        ],
+        "type": "object"
+      },
+      "EventRow": {
+        "properties": {
+          "at": {
+            "type": "string"
+          },
+          "context": {
+            "type": "string"
+          },
+          "durationMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "section": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "visitor": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "context",
+          "durationMs",
+          "id",
+          "label",
+          "path",
+          "section",
+          "text",
+          "type",
+          "url",
+          "visitor"
+        ],
+        "type": "object"
+      },
       "Identity": {
         "properties": {
           "userID": {
@@ -373,6 +647,41 @@
           "size",
           "totalElements",
           "totalPages"
+        ],
+        "type": "object"
+      },
+      "PageRow": {
+        "properties": {
+          "averageActiveMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "averageScroll": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "path": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "views": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "visitors": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "averageActiveMs",
+          "averageScroll",
+          "path",
+          "title",
+          "views",
+          "visitors"
         ],
         "type": "object"
       },
@@ -553,6 +862,37 @@
         ],
         "type": "object"
       },
+      "PostRow": {
+        "properties": {
+          "averageActiveMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "legacyViews": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "title": {
+            "type": "string"
+          },
+          "views": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "averageActiveMs",
+          "id",
+          "legacyViews",
+          "title",
+          "views"
+        ],
+        "type": "object"
+      },
       "ReactionState": {
         "properties": {
           "anonymousCount": {
@@ -578,6 +918,84 @@
           "count",
           "liked",
           "users"
+        ],
+        "type": "object"
+      },
+      "SourceRow": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "views": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "visitors": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "name",
+          "views",
+          "visitors"
+        ],
+        "type": "object"
+      },
+      "Summary": {
+        "properties": {
+          "averageActiveMs": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "linkedInClicks": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "outboundClicks": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "resumeClicks": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "resumeViews": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "resumeVisitors": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "selections": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "sessions": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "views": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "visitors": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "averageActiveMs",
+          "linkedInClicks",
+          "outboundClicks",
+          "resumeClicks",
+          "resumeViews",
+          "resumeVisitors",
+          "selections",
+          "sessions",
+          "views",
+          "visitors"
         ],
         "type": "object"
       },
@@ -728,6 +1146,49 @@
         ],
         "type": "object"
       },
+      "VisitRequest": {
+        "properties": {
+          "device": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "referrer": {
+            "type": "string"
+          },
+          "sessionId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "device",
+          "id",
+          "path",
+          "referrer",
+          "sessionId"
+        ],
+        "type": "object"
+      },
+      "VisitResponse": {
+        "properties": {
+          "interestCount": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "tracked": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "interestCount",
+          "tracked"
+        ],
+        "type": "object"
+      },
       "Visitor": {
         "properties": {
           "key": {
@@ -757,6 +1218,154 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/admin/analytics": {
+      "get": {
+        "operationId": "AnalyticsController_Dashboard",
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Dashboard"
+                }
+              }
+            },
+            "description": "Response status is determined by httpx.ResponseOptions at runtime."
+          }
+        },
+        "x-spine-analysis": "static-source",
+        "x-spine-handler": "(*AnalyticsController).Dashboard",
+        "x-spine-return-types": [
+          "httpx.Response[Dashboard]",
+          "error"
+        ],
+        "x-spine-source": "src/analytics/analytics_route.go:15",
+        "x-spine-unresolved-parameters": [
+          "q:query.Values@query",
+          "sc:spinecontext.Ctx@value"
+        ]
+      }
+    },
+    "/api/v1/admin/analytics/events": {
+      "get": {
+        "operationId": "AnalyticsController_Events",
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventPage"
+                }
+              }
+            },
+            "description": "Response status is determined by httpx.ResponseOptions at runtime."
+          }
+        },
+        "x-spine-analysis": "static-source",
+        "x-spine-handler": "(*AnalyticsController).Events",
+        "x-spine-return-types": [
+          "httpx.Response[EventPage]",
+          "error"
+        ],
+        "x-spine-source": "src/analytics/analytics_route.go:16",
+        "x-spine-unresolved-parameters": [
+          "q:query.Values@query",
+          "sc:spinecontext.Ctx@value"
+        ]
+      }
+    },
+    "/api/v1/analytics/events": {
+      "post": {
+        "operationId": "AnalyticsController_Collect",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "Response status is determined by the Spine handler contract."
+          }
+        },
+        "x-spine-analysis": "static-source",
+        "x-spine-handler": "(*AnalyticsController).Collect",
+        "x-spine-return-types": [
+          "error"
+        ],
+        "x-spine-source": "src/analytics/analytics_route.go:13",
+        "x-spine-unresolved-parameters": [
+          "h:header.Values@header"
+        ]
+      }
+    },
+    "/api/v1/analytics/interest": {
+      "get": {
+        "operationId": "AnalyticsController_Interest",
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "format": "int64",
+                    "type": "integer"
+                  },
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Response status is determined by httpx.ResponseOptions at runtime."
+          }
+        },
+        "x-spine-analysis": "static-source",
+        "x-spine-handler": "(*AnalyticsController).Interest",
+        "x-spine-return-types": [
+          "httpx.Response[map[string]int64]",
+          "error"
+        ],
+        "x-spine-source": "src/analytics/analytics_route.go:14"
+      }
+    },
+    "/api/v1/analytics/visits": {
+      "post": {
+        "operationId": "AnalyticsController_Start",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VisitRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisitResponse"
+                }
+              }
+            },
+            "description": "Response status is determined by httpx.ResponseOptions at runtime."
+          }
+        },
+        "x-spine-analysis": "static-source",
+        "x-spine-handler": "(*AnalyticsController).Start",
+        "x-spine-return-types": [
+          "httpx.Response[VisitResponse]",
+          "error"
+        ],
+        "x-spine-source": "src/analytics/analytics_route.go:12",
+        "x-spine-unresolved-parameters": [
+          "h:header.Values@header"
+        ]
+      }
+    },
     "/api/v1/auth/login": {
       "post": {
         "operationId": "AuthController_Login",
@@ -1616,7 +2225,7 @@
         "x-spine-return-types": [
           "httpx.Response[map[string]string]"
         ],
-        "x-spine-source": "internal/application/application.go:131"
+        "x-spine-source": "internal/application/application.go:135"
       }
     }
   },

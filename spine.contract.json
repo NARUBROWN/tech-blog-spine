@@ -7,6 +7,30 @@
   "composition": "./internal/application",
   "constructors": [
     {
+      "target": "NewAnalyticsRepository",
+      "dependencies": [
+        "*store.MySQLStore"
+      ],
+      "source": "src/analytics/analytics_route.go:7"
+    },
+    {
+      "target": "NewAnalyticsService",
+      "dependencies": [
+        "*AnalyticsRepository",
+        "config.Config",
+        "*security.TokenManager",
+        "*security.RedisRefreshTokenStore"
+      ],
+      "source": "src/analytics/analytics_route.go:7"
+    },
+    {
+      "target": "NewAnalyticsController",
+      "dependencies": [
+        "*AnalyticsService"
+      ],
+      "source": "src/analytics/analytics_route.go:7"
+    },
+    {
       "target": "NewCommentsRepository",
       "dependencies": [
         "*store.MySQLStore"
@@ -31,35 +55,35 @@
     },
     {
       "target": "NewConfig",
-      "source": "internal/application/application.go:100"
+      "source": "internal/application/application.go:104"
     },
     {
       "target": "ProvideMySQLStore",
       "dependencies": [
         "config.Config"
       ],
-      "source": "internal/application/application.go:100"
+      "source": "internal/application/application.go:104"
     },
     {
       "target": "ProvideRedisRefreshTokenStore",
       "dependencies": [
         "config.Config"
       ],
-      "source": "internal/application/application.go:100"
+      "source": "internal/application/application.go:104"
     },
     {
       "target": "ProvideTokenManager",
       "dependencies": [
         "config.Config"
       ],
-      "source": "internal/application/application.go:100"
+      "source": "internal/application/application.go:104"
     },
     {
       "target": "ProvideImageStorage",
       "dependencies": [
         "config.Config"
       ],
-      "source": "internal/application/application.go:100"
+      "source": "internal/application/application.go:104"
     },
     {
       "target": "ProvideBlogService",
@@ -69,7 +93,7 @@
         "*security.TokenManager",
         "*blog.ImageStorage"
       ],
-      "source": "internal/application/application.go:100"
+      "source": "internal/application/application.go:104"
     },
     {
       "target": "ProvideAuthInterceptor",
@@ -77,14 +101,14 @@
         "*security.TokenManager",
         "*security.RedisRefreshTokenStore"
       ],
-      "source": "internal/application/application.go:100"
+      "source": "internal/application/application.go:104"
     },
     {
       "target": "NewCORSInterceptor",
       "dependencies": [
         "config.Config"
       ],
-      "source": "internal/application/application.go:100"
+      "source": "internal/application/application.go:104"
     },
     {
       "target": "NewImagesController",
@@ -130,7 +154,7 @@
     },
     {
       "target": "NewHealthController",
-      "source": "internal/application/application.go:130"
+      "source": "internal/application/application.go:134"
     }
   ],
   "http": [
@@ -220,6 +244,77 @@
         "error"
       ],
       "source": "src/posts/module.go:14"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/analytics/events",
+      "handler": "(*AnalyticsController).Events",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "q",
+          "type": "query.Values",
+          "binding": "query"
+        },
+        {
+          "name": "sc",
+          "type": "spinecontext.Ctx",
+          "binding": "value"
+        }
+      ],
+      "returns": [
+        "httpx.Response[EventPage]",
+        "error"
+      ],
+      "source": "src/analytics/analytics_route.go:16"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/admin/analytics",
+      "handler": "(*AnalyticsController).Dashboard",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "q",
+          "type": "query.Values",
+          "binding": "query"
+        },
+        {
+          "name": "sc",
+          "type": "spinecontext.Ctx",
+          "binding": "value"
+        }
+      ],
+      "returns": [
+        "httpx.Response[Dashboard]",
+        "error"
+      ],
+      "source": "src/analytics/analytics_route.go:15"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/analytics/interest",
+      "handler": "(*AnalyticsController).Interest",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        }
+      ],
+      "returns": [
+        "httpx.Response[map[string]int64]",
+        "error"
+      ],
+      "source": "src/analytics/analytics_route.go:14"
     },
     {
       "method": "GET",
@@ -447,7 +542,7 @@
       "returns": [
         "httpx.Response[map[string]string]"
       ],
-      "source": "internal/application/application.go:131"
+      "source": "internal/application/application.go:135"
     },
     {
       "method": "PATCH",
@@ -545,6 +640,59 @@
         "error"
       ],
       "source": "src/users/module.go:13"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/events",
+      "handler": "(*AnalyticsController).Collect",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "r",
+          "type": "*BatchRequest",
+          "binding": "body"
+        },
+        {
+          "name": "h",
+          "type": "header.Values",
+          "binding": "header"
+        }
+      ],
+      "returns": [
+        "error"
+      ],
+      "source": "src/analytics/analytics_route.go:13"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/analytics/visits",
+      "handler": "(*AnalyticsController).Start",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "r",
+          "type": "*VisitRequest",
+          "binding": "body"
+        },
+        {
+          "name": "h",
+          "type": "header.Values",
+          "binding": "header"
+        }
+      ],
+      "returns": [
+        "httpx.Response[VisitResponse]",
+        "error"
+      ],
+      "source": "src/analytics/analytics_route.go:12"
     },
     {
       "method": "POST",
@@ -828,73 +976,78 @@
     {
       "target": "(*cors.CORSInterceptor)(nil)",
       "scope": "boot.InterceptorHTTP",
-      "source": "internal/application/application.go:110"
+      "source": "internal/application/application.go:114"
     },
     {
       "target": "(*security.AuthInterceptor)(nil)",
       "scope": "boot.InterceptorHTTP",
-      "source": "internal/application/application.go:111"
+      "source": "internal/application/application.go:115"
     }
   ],
   "consumers": [],
   "websockets": [],
   "resources": [
     {
+      "package": "analytics",
+      "import": "github.com/NARUBROWN/tech-blog-spine/src/analytics",
+      "source": "internal/application/application.go:98"
+    },
+    {
       "package": "auth",
       "import": "github.com/NARUBROWN/tech-blog-spine/src/auth",
-      "source": "internal/application/application.go:127"
+      "source": "internal/application/application.go:131"
     },
     {
       "package": "categories",
       "import": "github.com/NARUBROWN/tech-blog-spine/src/categories",
-      "source": "internal/application/application.go:118"
+      "source": "internal/application/application.go:122"
     },
     {
       "package": "comments",
       "import": "github.com/NARUBROWN/tech-blog-spine/src/comments",
-      "source": "internal/application/application.go:97"
+      "source": "internal/application/application.go:101"
     },
     {
       "package": "images",
       "import": "github.com/NARUBROWN/tech-blog-spine/src/images",
-      "source": "internal/application/application.go:112"
+      "source": "internal/application/application.go:116"
     },
     {
       "package": "likes",
       "import": "github.com/NARUBROWN/tech-blog-spine/src/likes",
-      "source": "internal/application/application.go:115"
+      "source": "internal/application/application.go:119"
     },
     {
       "package": "posts",
       "import": "github.com/NARUBROWN/tech-blog-spine/src/posts",
-      "source": "internal/application/application.go:121"
+      "source": "internal/application/application.go:125"
     },
     {
       "package": "users",
       "import": "github.com/NARUBROWN/tech-blog-spine/src/users",
-      "source": "internal/application/application.go:124"
+      "source": "internal/application/application.go:128"
     }
   ],
   "configuration": [
     {
       "path": "boot.Options.Address",
       "value": "address",
-      "source": "internal/application/application.go:138"
+      "source": "internal/application/application.go:142"
     },
     {
       "path": "boot.Options.EnableGracefulShutdown",
       "value": "true",
-      "source": "internal/application/application.go:139"
+      "source": "internal/application/application.go:143"
     },
     {
       "path": "boot.Options.HTTP.MaxBodyBytes",
       "value": "21 \u003c\u003c 20",
-      "source": "internal/application/application.go:140"
+      "source": "internal/application/application.go:144"
     },
     {
       "path": "boot.Options.HTTP",
       "value": "configured",
-      "source": "internal/application/application.go:140"
+      "source": "internal/application/application.go:144"
     }
   ],
   "diagnostics": []
