@@ -1,161 +1,222 @@
-# Tech Blog Spine API
+<div align="center">
+  <h1>Tech Blog Spine</h1>
+  <p><strong>글과 독자, 운영 데이터를 연결하는 기술 블로그 API</strong></p>
+  <p>NARUBROWN 기술 블로그를 위한 Go와 Spine 기반 REST API입니다.</p>
+  <p>
+    <img src="https://img.shields.io/badge/Go-1.25.5%2B-00ADD8?logo=go&logoColor=white" alt="Go 1.25.5 이상" />
+    <a href="https://github.com/NARUBROWN/spine"><img src="https://img.shields.io/badge/Spine-0.5.1-6366F1" alt="Spine 0.5.1" /></a>
+    <img src="https://img.shields.io/badge/MySQL-8-4479A1?logo=mysql&logoColor=white" alt="MySQL 8" />
+    <img src="https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white" alt="Redis 7" />
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-CC_BY--NC_4.0-475569" alt="CC BY-NC 4.0 라이선스" /></a>
+  </p>
+  <p>
+    <a href="https://na2ru2.me"><strong>블로그 방문하기</strong></a>
+    &nbsp; / &nbsp;
+    <a href="https://github.com/NARUBROWN/tech-blog-react">프런트엔드 저장소</a>
+    &nbsp; / &nbsp;
+    <a href="#빠른-시작">빠른 시작</a>
+    &nbsp; / &nbsp;
+    <a href="docs/operations.md">운영 가이드</a>
+  </p>
+</div>
 
-기존 `tech-blog-springboot`의 HTTP 계약과 도메인 동작을 Go 기반 [Spine](https://github.com/NARUBROWN/spine) 애플리케이션으로 옮긴 프로젝트입니다. 프로젝트 골격과 리소스 모듈은 `spine-cli 0.1.1`의 `spine new`, `spine generate resource`로 생성했습니다.
+---
 
-## 이전된 기능
+## 소개
 
-- 포스트 CRUD, 슬러그, SEO 필드, 조회수와 좋아요 카운터
-- 카테고리와 태그 및 포스트-태그 관계
-- HMAC-SHA256 JWT 액세스/리프레시 토큰과 HTTP-only 쿠키
-- Redis 리프레시 토큰 저장 및 액세스 토큰 재발급
-- MySQL 저장소와 트랜잭션 기반 관계 변경
-- PNG/JPEG/WebP 형식·20MB 제한을 서버에서 검사하는 이미지 저장
-- Spine CORS 및 인증 인터셉터
-- Spine 정적 실행 계약, OpenAPI export, snapshot/diff
+게시글과 계정 관리부터 익명 댓글, 좋아요, 관리자 통계까지 기술 블로그 운영에 필요한 API를 제공합니다. 기존 Spring Boot 백엔드의 HTTP 계약과 도메인 동작을 Go 기반 [Spine](https://github.com/NARUBROWN/spine)으로 옮겼습니다.
 
-원본 Spring 프로젝트는 비교와 데이터 이전을 위해 상위 디렉터리의 `tech-blog-springboot`에 그대로 보존되어 있습니다.
+[tech-blog-react](https://github.com/NARUBROWN/tech-blog-react)가 화면을 담당하며, 이 저장소는 인증, 권한 확인, 데이터 저장, 이미지 제공과 계측을 담당합니다. 프로젝트 골격과 초기 리소스 모듈은 Spine CLI로 생성했습니다.
 
-## 빠른 실행
+## 주요 기능
 
-Go 1.25.5 이상, MySQL 8.4, Redis 7 이상이 필요합니다.
+| 영역 | 제공하는 기능 |
+| --- | --- |
+| 게시글 | CRUD, 슬러그 조회, 카테고리와 태그, 검색과 페이지네이션, SEO 필드, 조회수 |
+| 인증과 권한 | HMAC-SHA256 JWT, HttpOnly 쿠키, Redis 리프레시 토큰, 사용자와 작성자 및 관리자 권한 |
+| 독자 반응 | 비밀번호를 확인하는 익명 댓글, 방문자 쿠키 기반 좋아요, 중복 반응 제약과 요청량 제한 |
+| 이미지 | PNG, JPEG, WebP 형식과 20MB 제한 검사, 파일 저장과 조회 |
+| 방문과 행동 분석 | 익명 방문자, 세션, 활성 체류시간, 스크롤과 유입 경로, 공개 페이지의 클릭과 문장 선택 |
+| 성능 분석 | 서버 처리와 API 왕복, 화면 콘텐츠 준비, FCP/LCP/INP, p50/p95/p99 통계 |
+| 실행 계약 | Spine 정적 계약 검사, OpenAPI 내보내기, 계약 스냅샷과 의미 변경 비교 |
+| 배포 | Docker Compose 로컬 구성, GitHub Actions 검증, OCI 배포와 Nginx 전환 |
+
+## 구성 한눈에 보기
+
+```mermaid
+flowchart LR
+    Client["React 프런트엔드"] --> API["Spine REST API"]
+    API --> MySQL[("MySQL: 글, 계정, 반응, 계측")]
+    API --> Redis[("Redis: 리프레시 토큰")]
+    API --> Images["이미지 파일 저장소"]
+```
+
+| 구성 요소 | 역할 |
+| --- | --- |
+| Go 1.25.5 이상 / Spine 0.5.1 | HTTP 라우팅, 의존성 구성, 인터셉터, 애플리케이션 부팅 |
+| MySQL | 도메인 데이터와 트랜잭션, 댓글과 반응, 방문과 성능 표본 저장 |
+| Redis | 리프레시 토큰 저장과 확인 |
+| Docker Compose | MySQL 8.4, Redis 7.4, API를 함께 실행 |
+| GitHub Actions | 코드 검사, MySQL과 Redis 통합 검증, Linux 빌드와 OCI 배포 |
+
+## 빠른 시작
+
+### Docker Compose로 실행
+
+Docker와 Docker Compose를 준비한 뒤 아래 순서로 실행합니다. Go를 따로 설치할 필요는 없습니다.
 
 ```bash
+git clone https://github.com/NARUBROWN/tech-blog-spine.git
+cd tech-blog-spine
 cp .env.example .env
-# .env의 MYSQL_PASSWORD와 32바이트 이상 JWT_SECRET을 변경
-set -a; source .env; set +a
-mysql -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" < migrations/001_init.sql
+```
+
+`.env`에서 `MYSQL_PASSWORD`, `MYSQL_ROOT_PASSWORD`, `JWT_SECRET`을 자신의 값으로 변경하세요. `JWT_SECRET`은 32바이트 이상의 무작위 값이어야 합니다. 로컬 HTTP에서 로그인과 방문자 쿠키를 사용하려면 `COOKIE_SECURE=false`로 설정합니다.
+
+```bash
+docker compose up -d --build
+
+# 서버 상태와 DB를 사용하는 게시글 목록 확인
+curl -fsS http://localhost:8080/health
+curl -fsS 'http://localhost:8080/api/v1/post?page=0&size=5'
+```
+
+API 기본 주소는 `http://localhost:8080/api/v1`입니다. 새 MySQL 볼륨을 처음 만들 때 [migrations/](migrations/)의 SQL이 실행됩니다. 기존 볼륨에는 초기화 SQL이 다시 실행되지 않습니다.
+
+```bash
+docker compose logs -f api
+docker compose down
+```
+
+이미지와 DB는 이름 있는 볼륨에 보관합니다. 프런트엔드는 별도 터미널에서 [실행 가이드](https://github.com/NARUBROWN/tech-blog-react#로컬-실행)에 따라 시작하세요.
+
+<details>
+<summary><strong>Go로 직접 실행하기</strong></summary>
+
+Go 1.25.5 이상, MySQL 8, Redis 7 이상이 필요합니다. 먼저 MySQL 데이터베이스와 사용자를 준비하고 `.env`의 연결 정보를 맞춥니다. **새 로컬 데이터베이스에만** 아래 스키마 초기화를 실행하세요. 기존 데이터 이전은 [운영 가이드](docs/operations.md)를 따릅니다.
+
+```bash
+set -a
+source .env
+set +a
+
+for migration in migrations/[0-9]*.sql; do
+  MYSQL_PWD="$MYSQL_PASSWORD" mysql \
+    -h "$MYSQL_HOST" -P "$MYSQL_PORT" \
+    -u "$MYSQL_USER" "$MYSQL_DATABASE" < "$migration"
+done
+
 go run .
 ```
 
-전체 로컬 스택은 Docker Compose로 실행할 수 있습니다.
+[Spine CLI](https://github.com/NARUBROWN/spine-cli)를 설치했다면 `go run .` 대신 `spine run`을 사용할 수 있습니다.
 
-```bash
-cp .env.example .env
-# .env의 JWT_SECRET을 반드시 변경
-docker compose up --build
-curl http://localhost:8080/health
-```
-
-`COOKIE_SECURE=true`가 기본값입니다. 로컬 HTTP 확인에서만 `false`를 사용하고 HTTPS 운영 환경에서는 반드시 `true`를 유지하세요.
+</details>
 
 ## 환경변수
 
-| 이름 | 필수 | 기본값 | 설명 |
-| --- | --- | --- | --- |
-| `MYSQL_DATABASE` | 예 | 없음 | MySQL 데이터베이스 |
-| `MYSQL_USER` | 예 | 없음 | MySQL 사용자 |
-| `MYSQL_PASSWORD` | 예 | 없음 | MySQL 비밀번호 |
-| `JWT_SECRET` | 예 | 없음 | 32바이트 이상 JWT 서명 키 |
-| `MYSQL_HOST` | 아니요 | `127.0.0.1` | MySQL 호스트 |
-| `MYSQL_PORT` | 아니요 | `3306` | MySQL 포트 |
-| `REDIS_ADDR` | 아니요 | `127.0.0.1:6379` | Redis 주소 |
-| `REDIS_PASSWORD` | 아니요 | 빈 값 | Redis 비밀번호 |
-| `REDIS_DB` | 아니요 | `0` | Redis DB 번호 |
-| `REDIS_TLS` | 아니요 | `false` | Redis TLS 사용 여부 |
-| `IMAGE_UPLOAD_DIR` | 아니요 | `./images` | 이미지 저장 경로 |
-| `ALLOWED_ORIGINS` | 아니요 | `http://localhost:5173` | 쉼표로 구분한 CORS origin |
-| `COOKIE_SECURE` | 아니요 | `true` | Secure 쿠키 사용 여부 |
-| `SPINE_PORT` | 아니요 | `8080` | HTTP 포트 |
+전체 예시는 [.env.example](.env.example), 실제 기본값과 검증은 [internal/config/config.go](internal/config/config.go)에서 확인할 수 있습니다. `.env`는 Git에 포함하지 않습니다.
 
-비밀값은 소스나 이미지에 포함하지 않습니다. 원본 Spring 개발 설정의 평문 DB/JWT 값도 새 애플리케이션으로 복사하지 않았습니다.
+| 이름 | 기본값 | 설명 |
+| --- | --- | --- |
+| `MYSQL_DATABASE` | 필수 | 데이터베이스 이름 |
+| `MYSQL_USER` | 필수 | MySQL 사용자 |
+| `MYSQL_PASSWORD` | 필수 | MySQL 비밀번호 |
+| `JWT_SECRET` | 필수 | 32바이트 이상의 JWT 서명 키 |
+| `MYSQL_HOST` / `MYSQL_PORT` | `127.0.0.1` / `3306` | MySQL 연결 주소 |
+| `MYSQL_ROOT_PASSWORD` | Compose에서 설정 | 로컬 MySQL 초기화용 root 비밀번호 |
+| `REDIS_ADDR` | `127.0.0.1:6379` | Redis 연결 주소 |
+| `REDIS_PASSWORD` / `REDIS_DB` | 빈 값 / `0` | Redis 인증과 DB 번호 |
+| `REDIS_TLS` | `false` | Redis TLS 연결 |
+| `IMAGE_UPLOAD_DIR` | `./images` | 이미지 파일 저장 경로 |
+| `ALLOWED_ORIGINS` | `http://localhost:5173` | 쉼표로 구분한 CORS 허용 origin |
+| `COOKIE_SECURE` | `true` | HTTPS 쿠키 사용. 로컬 HTTP에서만 `false` |
+| `SPINE_PORT` | `8080` | HTTP 서버 포트 |
 
-## 기존 Spring 데이터로 전환
+앱은 `.env`를 자동으로 읽지 않습니다. Compose는 파일의 값을 전달하고, 직접 실행할 때는 위 예시처럼 셸 환경변수로 불러옵니다. HTTPS 운영 환경에서는 `COOKIE_SECURE=true`를 유지하세요.
 
-기존 JPA 테이블명과 컬럼명을 유지했으므로 새 애플리케이션의 MySQL 환경변수를 기존 `tech_blog` 데이터베이스로 지정할 수 있습니다. 실제 전환 전에는 반드시 데이터베이스와 이미지 디렉터리를 백업하고 staging 복제본에서 먼저 확인하세요.
+## API 안내
 
-`migrations/001_init.sql`은 새 환경용 스키마입니다. 기존 운영 데이터베이스에는 그대로 실행하지 말고 현재 인덱스·제약조건과 비교해 별도 변경 스크립트로 적용해야 합니다. Spring Data Redis의 기존 hash 직렬화와 새 문자열 토큰 형식은 호환되지 않으므로 Spine은 `spine:refreshToken:*` 별도 키를 사용하며 전환 시 모든 사용자가 다시 로그인해야 합니다. 기존 Redis 키 전체를 삭제하지 않습니다.
+아래 경로에는 `/api/v1` 접두사가 붙습니다. `/health`는 서버 루트에 있습니다. `page`는 0부터 시작합니다.
 
-원본 `application.properties`에 노출된 DB/JWT 값은 이미 유출된 비밀로 간주해 운영 전 반드시 교체하세요.
+| 영역 | 대표 요청 | 접근 조건 |
+| --- | --- | --- |
+| 인증 | `POST /auth/login`, `POST /auth/logout` | 공개 |
+| 회원가입 | `POST /user/normal-signup` | 공개 |
+| 권한 계정 생성 | `POST /user/author-signup`, `POST /user/admin-signup` | 관리자 |
+| 프로필 | `PATCH /user/{id}` | 본인 또는 관리자 |
+| 글 조회와 검색 | `GET /post`, `GET /post/slug/{slug}`, `GET /post/id/{id}`, `GET /post/search/recent` | 공개 |
+| 글 작성 | `POST /post?categoryId={id}` | 작성자 또는 관리자 |
+| 글 수정과 삭제 | `PATCH /post?postId={id}&categoryId={id}`, `DELETE /post/{id}` | 해당 글 작성자 또는 관리자 |
+| 조회수 | `POST /post/view-count/{id}` | 공개 |
+| 카테고리 | `GET /category/list`, `POST /category?name={name}` | 조회 공개, 생성 관리자 |
+| 이미지 | `POST /image`, `GET /image/{uuid}` | 공개, 업로드 필드 `file` |
+| 댓글 | `GET/POST /comments/post/{id}`, `PATCH/DELETE /comments/{id}` | 공개, 수정과 삭제는 비밀번호 확인. 관리자 삭제 가능 |
+| 좋아요 | `GET /like/{id}/state`, `POST/DELETE /like/{id}` | 상태 조회로 방문자 쿠키 발급 후 반응 가능 |
+| 좋아요 계정 목록 | `GET /like/{id}` | 공개 |
+| 방문과 행동 수집 | `POST /analytics/visits`, `POST /analytics/events` | 방문자 쿠키 등 서버 검증 적용 |
+| 공개 관심 수 | `GET /analytics/interest` | 공개 |
+| 관리자 통계 | `GET /admin/analytics`, `GET /admin/analytics/events`, `GET /admin/analytics/performance` | 관리자 |
 
-## API
+작성자와 관리자 계정은 기존 관리자만 생성할 수 있습니다. 새 로컬 DB에는 관리자 계정이 자동으로 생성되지 않으며 일반 회원가입으로 작성 권한을 얻을 수 없습니다. 관리자 API는 DB의 역할을 다시 확인합니다.
 
-기본 경로는 `/api/v1`입니다.
+기본 HTTP 계약은 [OpenAPI 문서](docs/openapi.json), 최신 등록 경로는 [src/](src/)에서 확인할 수 있습니다. 변경 후에는 Spine CLI로 OpenAPI를 다시 내보낼 수 있습니다.
 
-| 영역 | 메서드 | 경로 | 인증 |
-| --- | --- | --- | --- |
-| Auth | POST | `/auth/login` | 공개 |
-| Auth | POST | `/auth/logout` | 공개 |
-| Users | POST | `/user/author-signup` | 관리자 |
-| Users | POST | `/user/admin-signup` | 관리자 |
-| Users | POST | `/user/normal-signup` | 공개 |
-| Users | PATCH | `/user/{id}` | 필요 |
-| Posts | POST | `/post?categoryId={id}` | 필요 |
-| Posts | PATCH | `/post?postId={id}&categoryId={id}` | 필요 |
-| Posts | GET | `/post?categoryName={name}&page=0&size=20` | 공개 |
-| Posts | GET | `/post/slug/{slug}` | 공개 |
-| Posts | GET | `/post/id/{id}` | 공개 |
-| Posts | DELETE | `/post/{id}` | 필요 |
-| Posts | POST | `/post/view-count/{id}` | 공개 |
-| Posts | GET | `/post/search/recent?keyword={keyword}&page=0&size=20` | 공개 |
-| Categories | POST | `/category?name={name}` | 필요 |
-| Categories | GET | `/category/list` | 공개 |
-| Likes | POST | `/like/{postId}` | 필요 |
-| Likes | DELETE | `/like/{postId}` | 필요 |
-| Likes | GET | `/like/{postId}` | 공개 |
-| Images | POST | `/image` (`multipart/form-data`, `file`) | 공개, 원본 계약 유지 |
-| Images | GET | `/image/{uuid}` | 공개 |
+## 실행 계약과 검증
 
-작성자와 관리자 계정은 기존 관리자만 생성할 수 있습니다. 일반 가입은 공개합니다. 글 작성은 작성자 또는 관리자, 수정과 삭제는 해당 글 작성자 또는 관리자, 카테고리 추가는 관리자만 가능합니다. 공개 작성자 정보에는 역할을 노출하지 않고, 프로필 수정 응답에는 자신의 역할을 포함합니다. 검색은 게시글 중복 없는 페이지 응답을 반환합니다.
-
-## Spine CLI 계약 검증
+[Spine CLI](https://github.com/NARUBROWN/spine-cli)를 설치한 환경에서 실행합니다.
 
 ```bash
-spine inspect
+spine schema --json
+spine capabilities --json
+spine context --root . --json
 spine contract check --json
-spine contract diff
-spine verify
+spine contract diff --json
+spine verify --json
 ```
 
-`spine verify`는 정적 계약, 포맷, `go vet`, `go test`를 검증합니다. MySQL/Redis 연결, 실제 listener, 배포 환경 동작은 별도의 통합 검증 범위입니다.
+`spine verify`는 정적 계약, 포맷, `go vet`, `go test`를 확인합니다. 실제 MySQL과 Redis 연결, HTTP 요청과 배포 환경은 별도 통합 검증 범위입니다. [CI 워크플로](.github/workflows/ci.yml)는 MySQL과 Redis를 준비해 [통합 검증 스크립트](scripts/integration.go)도 실행합니다. 이 스크립트는 이름이 `_test`로 끝나는 격리 DB만 허용합니다.
 
-## 구조
+<details>
+<summary><strong>OpenAPI 내보내기</strong></summary>
+
+```bash
+spine contract export --format openapi --output docs/openapi.json --force
+```
+
+OpenAPI는 정적 소스 분석 결과입니다. 실제 응답 상태와 인증 조건, 운영 환경의 동작은 구현과 통합 검증 결과를 함께 확인하세요.
+
+</details>
+
+## 프로젝트 구조
 
 ```text
-internal/application/  # Spine composition root와 boot options
-internal/blog/         # 유스케이스와 이미지 저장
-internal/config/       # 환경변수 구성
-internal/model/        # 도메인과 API DTO
-internal/security/     # JWT, Redis 토큰 저장, 인증 인터셉터
-internal/store/        # MySQL 저장소와 트랜잭션
-src/*/                 # spine-cli가 만든 HTTP resource 모듈
-migrations/            # MySQL 스키마
+internal/
+├── application/      # Spine 의존성 구성, 인터셉터, 부팅 옵션
+├── blog/             # 블로그 유스케이스와 이미지 저장
+├── config/           # 환경변수와 설정 검증
+├── model/            # 도메인 모델과 API DTO
+├── security/         # JWT, Redis 토큰 저장, 인증 인터셉터
+├── store/            # MySQL 저장소와 트랜잭션
+└── telemetry/        # 서버 처리 시간 계측
+src/                  # 기능별 HTTP 라우트, 컨트롤러와 모듈
+cmd/migrate/          # 기존 스키마와 추가 테이블 준비
+migrations/           # 새 DB 스키마와 기능별 추가 SQL
+docs/                 # OpenAPI, 운영과 이전 기록
+deploy/               # OCI 배포 이미지와 전환 스크립트
+scripts/              # MySQL과 Redis 통합 검증
+compose.yaml          # 로컬 API, MySQL, Redis 구성
+spine.contract.json   # 정적 실행 계약 스냅샷
 ```
 
-## GitHub Actions에서 OCI 배포
+## 배포와 운영 문서
 
-main push는 단위 테스트, race/vet/포맷 검사, 실제 MySQL 8.0 및 Redis 7 통합 테스트, Linux amd64 빌드 후 OCI 배포를 수행합니다. PR은 검증까지만 실행합니다. 운영 비밀값은 OCI의 root 전용 `/home/ubuntu/blog-spine/runtime.env`에 유지하고 GitHub에는 전용 SSH 키와 검증된 known_hosts만 보관합니다.
+`main`에 push하면 GitHub Actions가 검사와 통합 테스트, Linux amd64 빌드를 거쳐 OCI 배포를 수행합니다. PR에서는 검증만 실행합니다. 운영 환경변수는 서버에 보관하고, 배포 스크립트는 새 컨테이너의 상태와 DB 조회를 확인한 뒤 Nginx를 전환합니다.
 
-배포 스크립트는 기존 이미지 바인드 마운트를 유지하고 권한 enum에 ROLE_AUTHOR만 추가합니다. 새 포트를 검사한 다음 Nginx를 전환하며, 전환 실패 시 이전 설정으로 복구합니다. 성공 전에는 이전 컨테이너를 중지하지 않습니다. `/health` 외에 게시글 목록과 검색의 DB 조회도 검사합니다. 누락된 기존 이미지 31건의 메타데이터는 삭제하지 않습니다. 사용자가 확인한 원인은 과거 컨테이너 이미지 저장소의 마운트 누락입니다.
+- [운영과 데이터 이전 가이드](docs/operations.md): 기존 Spring 데이터 전환, 이미지 보존, 배포와 롤백, 댓글과 계측의 세부 정책
+- [마이그레이션 점검 기록](docs/migration-audit-2026-10-31.md): 전환 당시 확인한 변경과 검증 범위
+- [배포 워크플로](.github/workflows/ci.yml) / [배포 스크립트](deploy/deploy.sh)
 
-운영 상태: `/home/ubuntu/blog-spine/active-sha`, `active-port`. 릴리스: `/home/ubuntu/blog-spine/releases/<commit>`. 이전 Java 컨테이너 `blog-backend`와 원래 compose는 롤백용으로 보존합니다. 수동 롤백 시 Java 컨테이너를 시작하고 Nginx upstream을 8080으로 복원한 뒤 `nginx -t`와 reload를 실행합니다. DB를 과거 백업으로 덮어쓰지 않습니다.
+## 라이선스
 
-최초 운영 전환에서는 DB 관리자 연결로 기존 enum의 순서를 유지한 채 ROLE_AUTHOR만 추가했습니다. 운영 앱 계정은 SELECT/INSERT/UPDATE/DELETE 권한을 유지합니다. 이후 배포의 migrate 명령은 이미 준비된 권한 스키마를 확인하며 재실행해도 데이터를 바꾸지 않습니다. 새 환경의 최초 enum 변경에 ALTER 권한이 없으면 DB 관리자 단계에서 먼저 적용해야 합니다.
-
-Nginx 전환 직후 검증은 올바른 TLS 호스트명을 유지하면서 로컬 Nginx로 직접 연결합니다. 서버의 공인 IP로 되돌아가는 경로에 의존하지 않으며, 별도로 외부 클라이언트에서 공개 API를 확인합니다.
-
-## 익명 댓글과 좋아요
-
-- 댓글 조회/작성: `GET /api/v1/comments/post/{id}?page=0`, `POST /api/v1/comments/post/{id}`. 작성 본문은 nickname, content, password입니다.
-- 댓글 수정/삭제: `PATCH`, `DELETE /api/v1/comments/{id}`. 비밀번호를 확인하며 관리자는 삭제할 수 있습니다. 비밀번호는 bcrypt 해시로만 저장하고 공개 응답에 포함하지 않습니다. 본문은 HTML이 아닌 일반 텍스트로 표시합니다.
-- 좋아요 상태: `GET /api/v1/like/{id}/state`. 서명된 HttpOnly 방문자 쿠키를 발급하고 count, liked, anonymousCount, users를 반환합니다. 이후 `POST`, `DELETE /api/v1/like/{id}`는 로그인 없이 사용할 수 있습니다. 최초 쿠키 발급 전 쓰기는 거부합니다.
-- DB의 게시글/방문자 및 게시글/사용자 고유 제약, 게시글 행 잠금으로 동시 중복 요청을 한 표로 처리합니다. 취소도 반복 호출할 수 있습니다. 기존 계정 좋아요를 이관하며 동일 브라우저의 익명 반응과 계정 반응은 합칩니다.
-- 원본 IP는 저장하지 않습니다. Nginx가 덮어쓰는 실제 연결 IP를 HMAC 처리한 키로 분당 댓글 등록 5회, 수정/삭제 시도 10회, 좋아요 요청 60회를 제한합니다. Vercel 등 프록시 뒤의 연결 IP는 공유될 수 있습니다. 오래된 제한 기록은 정리합니다.
-- 익명 중복 방지는 브라우저 식별을 기준으로 합니다. 쿠키 삭제나 다른 브라우저/IP를 이용하는 사람이 동일인인지 확정하는 기능은 아닙니다. 요청 제한은 초기화 후 빠른 반복을 줄이기 위한 추가 방어입니다.
-- `migrations/002_feedback.sql`은 추가 테이블만 생성합니다. 운영 앱 계정의 권한을 늘리지 않고 최초 적용은 DB 관리자 연결에서 수행했습니다. 이후 migrate 명령은 기존 좋아요 이관과 집계 일치를 유지합니다.
-- 로그인 여부에 따라 달라지는 댓글/반응 조회 응답은 no-store로 반환합니다. 이미지 저장소 바인드 마운트는 유지합니다.
-
-## 관리자 전용 계측
-
-`/admin/analytics`에서 1/7/30/90일 기준 조회, 익명 방문자, 세션, 평균 활성 체류시간, 스크롤, 유입 호스트, 접속 기기, 게시글별 조회를 확인합니다. 스낵바의 자기소개서/LinkedIn 클릭, 자기소개서 외부 링크, 500ms 이상 드래그한 8자 이상의 공개 문장을 집계하고 방문자별 이벤트를 페이지 단위로 조회합니다. 관리자 조회 API는 인증 후 DB의 ROLE_ADMIN을 다시 확인합니다. 클라이언트의 관리자 표시만으로 접근할 수 없습니다.
-
-계측은 공개 페이지에서만 동작합니다. 로그인, 가입, 설정, 글쓰기 및 관리자 페이지는 제외하며 입력 내용이나 키 입력 자체를 수집하지 않습니다. 자기소개서 텍스트 선택은 최대 600자와 주변 문맥 1,000자를 전송합니다. 링크의 쿼리, fragment와 사용자 정보는 제거합니다. 원본 IP는 계측 DB에 보관하지 않고 Nginx가 제공하는 연결 IP의 HMAC으로 요청량을 제한합니다. 방문자는 별도 서명 HttpOnly 쿠키를 통해 익명으로 구분하며, 관리자 대시보드에는 HMAC 일부만 표시합니다. 실제 사람의 이름이나 신원은 알 수 없습니다.
-
-탭이 보이고 포커스가 있으며 최근 1분 이내 활동이 있을 때 활성 시간을 누적합니다. 15초 heartbeat, 페이지 전환, visibilitychange, pagehide에서 전송하며 서버가 방문 경과시간을 상한으로 검증합니다. 종료 직전 네트워크 중단이나 차단 프로그램으로 일부 데이터가 누락될 수 있습니다. 방문/이벤트 ID를 통해 StrictMode와 재전송을 중복 집계하지 않습니다.
-
-자기소개서의 공개 관심 수는 브라우저 식별 기준 누적 고유 방문자 수입니다. 관리자 자신과 기본적으로 식별 가능한 봇은 제외합니다. 상세 대시보드는 최근 90일까지 조회하며 오래된 상세 기록은 방문 요청 시 점진적으로 정리합니다. 누적 관심 수는 별도 테이블로 유지합니다. 계측 도입 이전의 체류시간과 클릭 이력은 복원하거나 만들어 넣지 않습니다. 게시글의 기존 누적 조회와 새로 측정한 기간별 조회는 별도 표시합니다.
-
-`migrations/003_analytics.sql`은 계측용 테이블만 추가합니다. 운영 앱 계정 권한은 늘리지 않고 최초 준비는 DB 관리자 연결로 수행하며 이후 migrate 명령은 테이블 존재 여부를 확인합니다.
-
-페이지 분석의 성능 영역은 서버 내부 처리(`Server-Timing: app`), 브라우저 API 왕복, 최초 콘텐츠 준비, SPA 전환 콘텐츠 준비, FCP/LCP/INP를 분리합니다. 관리자 전용 `GET /api/v1/admin/analytics/performance?days=30`은 기존과 같은 1/7/30/90일 범위에서 평균, p50, p95, p99, 최대, 표본 수와 HTTP 오류 수를 제공합니다. MySQL 8 윈도 함수로 전체 원시 표본의 nearest-rank 백분위를 계산하며, 페이지와 정규화한 API 경로별 상세도 제공합니다. 서버 지표는 실제 방문 브라우저가 받은 헤더 표본이며 전체 서버 요청 로그를 대신하지 않습니다. 캐시에서 재사용된 서버 헤더는 새 서버 표본으로 집계하지 않습니다. 백엔드 p95와 API p95의 차이는 개별 요청의 네트워크 시간이 아닙니다.
-
-`migrations/004_performance.sql`을 DB 관리자 연결에서 먼저 적용한 뒤 백엔드와 프론트엔드를 배포해야 합니다. 기존 migrate 명령도 신규 테이블 준비와 존재 확인을 포함합니다. 기존 방문과 클릭 데이터는 유지하며 성능 표본은 적용 이후부터 수집합니다. 표본은 방문 기록에 연결되어 90일 보관 정책을 따르고, 동일 ID 재전송은 중복 집계하지 않으며 더 최신 revision만 반영합니다. 검색어·쿼리 문자열을 성능 API 경로에 저장하지 않습니다.
+[CC BY-NC 4.0](LICENSE)을 따릅니다. 저작자 표시와 비영리 이용 조건을 확인해 주세요.
