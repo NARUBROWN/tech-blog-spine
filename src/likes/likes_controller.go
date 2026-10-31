@@ -2,38 +2,45 @@ package likes
 
 import (
 	"context"
-
+	"github.com/NARUBROWN/spine/pkg/header"
 	"github.com/NARUBROWN/spine/pkg/httpx"
 	"github.com/NARUBROWN/spine/pkg/path"
-	spinecontext "github.com/NARUBROWN/spine/pkg/spine"
-	"github.com/NARUBROWN/tech-blog-spine/internal/blog"
 	"github.com/NARUBROWN/tech-blog-spine/internal/model"
-	"github.com/NARUBROWN/tech-blog-spine/internal/security"
+	"github.com/NARUBROWN/tech-blog-spine/src/comments"
 )
 
-type LikesController struct{ service *blog.Service }
+type LikesController struct{ service *comments.CommentsService }
 
-func NewLikesController(service *blog.Service) *LikesController {
-	return &LikesController{service: service}
-}
-
-func (c *LikesController) Like(ctx context.Context, postID path.Int, spineCtx spinecontext.Ctx) error {
-	identity, err := security.IdentityFromContext(spineCtx)
+func NewLikesController(s *comments.CommentsService) *LikesController { return &LikesController{s} }
+func (c *LikesController) Like(ctx context.Context, id path.Int, h header.Values) (httpx.Response[comments.ReactionState], error) {
+	v, _, err := c.service.Visitor(h, true)
 	if err != nil {
-		return err
+		return httpx.Response[comments.ReactionState]{}, err
 	}
-	return c.service.LikePost(ctx, postID.Value, identity.UserID)
+	out, err := c.service.React(ctx, v, id.Value, true)
+	return httpx.Response[comments.ReactionState]{Body: out}, err
 }
-
-func (c *LikesController) Unlike(ctx context.Context, postID path.Int, spineCtx spinecontext.Ctx) error {
-	identity, err := security.IdentityFromContext(spineCtx)
+func (c *LikesController) Unlike(ctx context.Context, id path.Int, h header.Values) (httpx.Response[comments.ReactionState], error) {
+	v, _, err := c.service.Visitor(h, true)
 	if err != nil {
-		return err
+		return httpx.Response[comments.ReactionState]{}, err
 	}
-	return c.service.UnlikePost(ctx, postID.Value, identity.UserID)
+	out, err := c.service.React(ctx, v, id.Value, false)
+	return httpx.Response[comments.ReactionState]{Body: out}, err
 }
-
-func (c *LikesController) Users(ctx context.Context, postID path.Int) (httpx.Response[[]model.UserResponse], error) {
-	response, err := c.service.UsersWhoLiked(ctx, postID.Value)
-	return httpx.Response[[]model.UserResponse]{Body: response}, err
+func (c *LikesController) State(ctx context.Context, id path.Int, h header.Values) (httpx.Response[comments.ReactionState], error) {
+	v, cookies, err := c.service.Visitor(h, false)
+	if err != nil {
+		return httpx.Response[comments.ReactionState]{}, err
+	}
+	out, err := c.service.Reactions(ctx, v, id.Value)
+	return httpx.Response[comments.ReactionState]{Body: out, Options: httpx.ResponseOptions{Cookies: cookies, Headers: map[string]string{"Cache-Control": "no-store"}}}, err
+}
+func (c *LikesController) Users(ctx context.Context, id path.Int, h header.Values) (httpx.Response[[]model.UserResponse], error) {
+	v, cookies, err := c.service.Visitor(h, false)
+	if err != nil {
+		return httpx.Response[[]model.UserResponse]{}, err
+	}
+	out, err := c.service.Reactions(ctx, v, id.Value)
+	return httpx.Response[[]model.UserResponse]{Body: out.Users, Options: httpx.ResponseOptions{Cookies: cookies, Headers: map[string]string{"Cache-Control": "no-store"}}}, err
 }

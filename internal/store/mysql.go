@@ -513,3 +513,6 @@ func requireAffected(result sql.Result) error {
 	}
 	return nil
 }
+
+// FeedbackDB는 댓글과 반응 저장소가 같은 연결 풀을 사용하도록 합니다.
+func (s *MySQLStore) FeedbackDB() *sql.DB { return s.db }

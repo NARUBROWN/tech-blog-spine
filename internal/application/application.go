@@ -13,6 +13,7 @@ import (
 	"github.com/NARUBROWN/tech-blog-spine/internal/store"
 	auth "github.com/NARUBROWN/tech-blog-spine/src/auth"
 	categories "github.com/NARUBROWN/tech-blog-spine/src/categories"
+	comments "github.com/NARUBROWN/tech-blog-spine/src/comments"
 	images "github.com/NARUBROWN/tech-blog-spine/src/images"
 	likes "github.com/NARUBROWN/tech-blog-spine/src/likes"
 	posts "github.com/NARUBROWN/tech-blog-spine/src/posts"
@@ -93,6 +94,9 @@ func BuildApplication() (spine.App, boot.Options, error) {
 		return nil, boot.Options{}, err
 	}
 	app := spine.New()
+	if err := comments.Register(app); err != nil {
+		return nil, boot.Options{}, err
+	}
 	app.Constructor(
 		NewConfig,
 		ProvideMySQLStore,

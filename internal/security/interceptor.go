@@ -133,6 +133,9 @@ func CookieFromHeader(raw, name string) string {
 }
 
 func isPublicRoute(method, path string) bool {
+	if strings.HasPrefix(path, "/api/v1/comments/") || (strings.HasPrefix(path, "/api/v1/post/") && strings.HasSuffix(path, "/comments")) || strings.HasPrefix(path, "/api/v1/like/") {
+		return true
+	}
 	if method == http.MethodOptions || path == "/health" {
 		return true
 	}

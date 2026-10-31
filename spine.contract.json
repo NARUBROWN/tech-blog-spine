@@ -7,36 +7,59 @@
   "composition": "./internal/application",
   "constructors": [
     {
+      "target": "NewCommentsRepository",
+      "dependencies": [
+        "*store.MySQLStore"
+      ],
+      "source": "src/comments/comments_route.go:7"
+    },
+    {
+      "target": "NewCommentsService",
+      "dependencies": [
+        "*CommentsRepository",
+        "config.Config",
+        "*security.TokenManager"
+      ],
+      "source": "src/comments/comments_route.go:7"
+    },
+    {
+      "target": "NewCommentsController",
+      "dependencies": [
+        "*CommentsService"
+      ],
+      "source": "src/comments/comments_route.go:7"
+    },
+    {
       "target": "NewConfig",
-      "source": "internal/application/application.go:96"
+      "source": "internal/application/application.go:100"
     },
     {
       "target": "ProvideMySQLStore",
       "dependencies": [
         "config.Config"
       ],
-      "source": "internal/application/application.go:96"
+      "source": "internal/application/application.go:100"
     },
     {
       "target": "ProvideRedisRefreshTokenStore",
       "dependencies": [
         "config.Config"
       ],
-      "source": "internal/application/application.go:96"
+      "source": "internal/application/application.go:100"
     },
     {
       "target": "ProvideTokenManager",
       "dependencies": [
         "config.Config"
       ],
-      "source": "internal/application/application.go:96"
+      "source": "internal/application/application.go:100"
     },
     {
       "target": "ProvideImageStorage",
       "dependencies": [
         "config.Config"
       ],
-      "source": "internal/application/application.go:96"
+      "source": "internal/application/application.go:100"
     },
     {
       "target": "ProvideBlogService",
@@ -46,7 +69,7 @@
         "*security.TokenManager",
         "*blog.ImageStorage"
       ],
-      "source": "internal/application/application.go:96"
+      "source": "internal/application/application.go:100"
     },
     {
       "target": "ProvideAuthInterceptor",
@@ -54,14 +77,14 @@
         "*security.TokenManager",
         "*security.RedisRefreshTokenStore"
       ],
-      "source": "internal/application/application.go:96"
+      "source": "internal/application/application.go:100"
     },
     {
       "target": "NewCORSInterceptor",
       "dependencies": [
         "config.Config"
       ],
-      "source": "internal/application/application.go:96"
+      "source": "internal/application/application.go:100"
     },
     {
       "target": "NewImagesController",
@@ -73,7 +96,7 @@
     {
       "target": "NewLikesController",
       "dependencies": [
-        "*blog.Service"
+        "*comments.CommentsService"
       ],
       "source": "src/likes/module.go:7"
     },
@@ -107,10 +130,42 @@
     },
     {
       "target": "NewHealthController",
-      "source": "internal/application/application.go:126"
+      "source": "internal/application/application.go:130"
     }
   ],
   "http": [
+    {
+      "method": "DELETE",
+      "path": "/api/v1/comments/:id",
+      "handler": "(*CommentsController).Delete",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "id",
+          "type": "path.Int",
+          "binding": "path",
+          "key": "id"
+        },
+        {
+          "name": "r",
+          "type": "*CommentRequest",
+          "binding": "body"
+        },
+        {
+          "name": "h",
+          "type": "header.Values",
+          "binding": "header"
+        }
+      ],
+      "returns": [
+        "error"
+      ],
+      "source": "src/comments/comments_route.go:15"
+    },
     {
       "method": "DELETE",
       "path": "/api/v1/like/:postId",
@@ -122,21 +177,22 @@
           "binding": "context"
         },
         {
-          "name": "postID",
+          "name": "id",
           "type": "path.Int",
           "binding": "path",
           "key": "postId"
         },
         {
-          "name": "spineCtx",
-          "type": "spinecontext.Ctx",
-          "binding": "value"
+          "name": "h",
+          "type": "header.Values",
+          "binding": "header"
         }
       ],
       "returns": [
+        "httpx.Response[comments.ReactionState]",
         "error"
       ],
-      "source": "src/likes/module.go:11"
+      "source": "src/likes/module.go:12"
     },
     {
       "method": "DELETE",
@@ -184,6 +240,39 @@
     },
     {
       "method": "GET",
+      "path": "/api/v1/comments/post/:id",
+      "handler": "(*CommentsController).List",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "id",
+          "type": "path.Int",
+          "binding": "path",
+          "key": "id"
+        },
+        {
+          "name": "q",
+          "type": "query.Values",
+          "binding": "query"
+        },
+        {
+          "name": "h",
+          "type": "header.Values",
+          "binding": "header"
+        }
+      ],
+      "returns": [
+        "httpx.Response[CommentPage]",
+        "error"
+      ],
+      "source": "src/comments/comments_route.go:12"
+    },
+    {
+      "method": "GET",
       "path": "/api/v1/image/:uuid",
       "handler": "(*ImagesController).Get",
       "parameters": [
@@ -207,6 +296,34 @@
     },
     {
       "method": "GET",
+      "path": "/api/v1/like/:postId/state",
+      "handler": "(*LikesController).State",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "id",
+          "type": "path.Int",
+          "binding": "path",
+          "key": "postId"
+        },
+        {
+          "name": "h",
+          "type": "header.Values",
+          "binding": "header"
+        }
+      ],
+      "returns": [
+        "httpx.Response[comments.ReactionState]",
+        "error"
+      ],
+      "source": "src/likes/module.go:10"
+    },
+    {
+      "method": "GET",
       "path": "/api/v1/like/:postId",
       "handler": "(*LikesController).Users",
       "parameters": [
@@ -216,17 +333,22 @@
           "binding": "context"
         },
         {
-          "name": "postID",
+          "name": "id",
           "type": "path.Int",
           "binding": "path",
           "key": "postId"
+        },
+        {
+          "name": "h",
+          "type": "header.Values",
+          "binding": "header"
         }
       ],
       "returns": [
         "httpx.Response[[]model.UserResponse]",
         "error"
       ],
-      "source": "src/likes/module.go:12"
+      "source": "src/likes/module.go:13"
     },
     {
       "method": "GET",
@@ -325,7 +447,39 @@
       "returns": [
         "httpx.Response[map[string]string]"
       ],
-      "source": "internal/application/application.go:127"
+      "source": "internal/application/application.go:131"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/comments/:id",
+      "handler": "(*CommentsController).Update",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "id",
+          "type": "path.Int",
+          "binding": "path",
+          "key": "id"
+        },
+        {
+          "name": "r",
+          "type": "*CommentRequest",
+          "binding": "body"
+        },
+        {
+          "name": "h",
+          "type": "header.Values",
+          "binding": "header"
+        }
+      ],
+      "returns": [
+        "error"
+      ],
+      "source": "src/comments/comments_route.go:14"
     },
     {
       "method": "PATCH",
@@ -463,6 +617,38 @@
     },
     {
       "method": "POST",
+      "path": "/api/v1/comments/post/:id",
+      "handler": "(*CommentsController).Create",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "id",
+          "type": "path.Int",
+          "binding": "path",
+          "key": "id"
+        },
+        {
+          "name": "r",
+          "type": "*CommentRequest",
+          "binding": "body"
+        },
+        {
+          "name": "h",
+          "type": "header.Values",
+          "binding": "header"
+        }
+      ],
+      "returns": [
+        "error"
+      ],
+      "source": "src/comments/comments_route.go:13"
+    },
+    {
+      "method": "POST",
       "path": "/api/v1/image",
       "handler": "(*ImagesController).Upload",
       "parameters": [
@@ -494,21 +680,22 @@
           "binding": "context"
         },
         {
-          "name": "postID",
+          "name": "id",
           "type": "path.Int",
           "binding": "path",
           "key": "postId"
         },
         {
-          "name": "spineCtx",
-          "type": "spinecontext.Ctx",
-          "binding": "value"
+          "name": "h",
+          "type": "header.Values",
+          "binding": "header"
         }
       ],
       "returns": [
+        "httpx.Response[comments.ReactionState]",
         "error"
       ],
-      "source": "src/likes/module.go:10"
+      "source": "src/likes/module.go:11"
     },
     {
       "method": "POST",
@@ -641,12 +828,12 @@
     {
       "target": "(*cors.CORSInterceptor)(nil)",
       "scope": "boot.InterceptorHTTP",
-      "source": "internal/application/application.go:106"
+      "source": "internal/application/application.go:110"
     },
     {
       "target": "(*security.AuthInterceptor)(nil)",
       "scope": "boot.InterceptorHTTP",
-      "source": "internal/application/application.go:107"
+      "source": "internal/application/application.go:111"
     }
   ],
   "consumers": [],
@@ -655,54 +842,59 @@
     {
       "package": "auth",
       "import": "github.com/NARUBROWN/tech-blog-spine/src/auth",
-      "source": "internal/application/application.go:123"
+      "source": "internal/application/application.go:127"
     },
     {
       "package": "categories",
       "import": "github.com/NARUBROWN/tech-blog-spine/src/categories",
-      "source": "internal/application/application.go:114"
+      "source": "internal/application/application.go:118"
+    },
+    {
+      "package": "comments",
+      "import": "github.com/NARUBROWN/tech-blog-spine/src/comments",
+      "source": "internal/application/application.go:97"
     },
     {
       "package": "images",
       "import": "github.com/NARUBROWN/tech-blog-spine/src/images",
-      "source": "internal/application/application.go:108"
+      "source": "internal/application/application.go:112"
     },
     {
       "package": "likes",
       "import": "github.com/NARUBROWN/tech-blog-spine/src/likes",
-      "source": "internal/application/application.go:111"
+      "source": "internal/application/application.go:115"
     },
     {
       "package": "posts",
       "import": "github.com/NARUBROWN/tech-blog-spine/src/posts",
-      "source": "internal/application/application.go:117"
+      "source": "internal/application/application.go:121"
     },
     {
       "package": "users",
       "import": "github.com/NARUBROWN/tech-blog-spine/src/users",
-      "source": "internal/application/application.go:120"
+      "source": "internal/application/application.go:124"
     }
   ],
   "configuration": [
     {
       "path": "boot.Options.Address",
       "value": "address",
-      "source": "internal/application/application.go:134"
+      "source": "internal/application/application.go:138"
     },
     {
       "path": "boot.Options.EnableGracefulShutdown",
       "value": "true",
-      "source": "internal/application/application.go:135"
+      "source": "internal/application/application.go:139"
     },
     {
       "path": "boot.Options.HTTP.MaxBodyBytes",
       "value": "21 \u003c\u003c 20",
-      "source": "internal/application/application.go:136"
+      "source": "internal/application/application.go:140"
     },
     {
       "path": "boot.Options.HTTP",
       "value": "configured",
-      "source": "internal/application/application.go:136"
+      "source": "internal/application/application.go:140"
     }
   ],
   "diagnostics": []

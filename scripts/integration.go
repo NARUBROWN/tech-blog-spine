@@ -207,9 +207,127 @@ func run() error {
 	if profile.Role != "ROLE_ADMIN" {
 		return fmt.Errorf("프로필 role 유실")
 	}
+	if err = feedbackIntegration(base, postID); err != nil {
+		return err
+	}
 	if err = check(admin, "DELETE", fmt.Sprintf("/api/v1/post/%d", postID), nil, 200); err != nil {
 		return err
 	}
 	fmt.Println("통합 검증 통과: 역할 마이그레이션, 로그인, 권한 차단, 작성자 수정, 관리자 삭제, 프로필 역할, 검색 중복 및 페이지네이션, Quill/Mermaid 본문 보존")
+	return nil
+}
+
+// 실제 HTTP와 MySQL에서 익명 쿠키, 댓글 비밀번호, 동시 중복 요청을 확인합니다.
+func feedbackIntegration(base string, postID int64) error {
+	jar, _ := cookiejar.New(nil)
+	anon := &http.Client{Jar: jar, Timeout: 10 * time.Second}
+	call := func(method, path string, body any, want int) ([]byte, error) {
+		b, _ := json.Marshal(body)
+		req, _ := http.NewRequest(method, base+path, bytes.NewReader(b))
+		req.Header.Set("Content-Type", "application/json")
+		r, err := anon.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer r.Body.Close()
+		data, _ := io.ReadAll(r.Body)
+		if r.StatusCode != want {
+			return nil, fmt.Errorf("feedback %s %s: status=%d want=%d body=%s", method, path, r.StatusCode, want, data)
+		}
+		return data, nil
+	}
+	likes := fmt.Sprintf("/api/v1/like/%d", postID)
+	comments := fmt.Sprintf("/api/v1/comments/post/%d", postID)
+	if _, err := call("POST", likes, nil, 409); err != nil {
+		return err
+	}
+	if _, err := call("GET", likes+"/state", nil, 200); err != nil {
+		return err
+	}
+	if _, err := call("POST", likes, nil, 200); err != nil {
+		return err
+	}
+	errors := make(chan error, 12)
+	for i := 0; i < 12; i++ {
+		go func() { _, err := call("POST", likes, nil, 200); errors <- err }()
+	}
+	for i := 0; i < 12; i++ {
+		if err := <-errors; err != nil {
+			return err
+		}
+	}
+	data, err := call("GET", likes+"/state", nil, 200)
+	if err != nil {
+		return err
+	}
+	var state struct {
+		Count int
+		Liked bool
+	}
+	_ = json.Unmarshal(data, &state)
+	if state.Count != 1 || !state.Liked {
+		return fmt.Errorf("중복 좋아요 집계: %s", data)
+	}
+	for i := 0; i < 2; i++ {
+		if _, err = call("DELETE", likes, nil, 200); err != nil {
+			return err
+		}
+	}
+	data, err = call("GET", likes+"/state", nil, 200)
+	if err != nil {
+		return err
+	}
+	_ = json.Unmarshal(data, &state)
+	if state.Count != 0 || state.Liked {
+		return fmt.Errorf("중복 취소 처리: %s", data)
+	}
+	body := map[string]any{"nickname": "익명", "password": "test-password", "content": "<script>alert(1)</script>\n일반 텍스트"}
+	if _, err = call("POST", comments, body, 200); err != nil {
+		return err
+	}
+	data, err = call("GET", comments, nil, 200)
+	if err != nil {
+		return err
+	}
+	var page struct {
+		Content []struct {
+			ID      int64
+			Content string
+		}
+		TotalElements int
+	}
+	_ = json.Unmarshal(data, &page)
+	if len(page.Content) != 1 || strings.Contains(string(data), "test-password") || strings.Contains(string(data), "password_hash") {
+		return fmt.Errorf("댓글 공개 DTO 실패: %s", data)
+	}
+	id := page.Content[0].ID
+	manage := fmt.Sprintf("/api/v1/comments/%d", id)
+	if _, err = call("PATCH", manage, map[string]string{"content": "변조", "password": "wrong-password"}, 403); err != nil {
+		return err
+	}
+	if _, err = call("DELETE", manage, map[string]string{"password": "wrong-password"}, 403); err != nil {
+		return err
+	}
+	if _, err = call("PATCH", manage, map[string]string{"content": "수정 완료", "password": "test-password"}, 200); err != nil {
+		return err
+	}
+	if _, err = call("DELETE", manage, map[string]string{"password": "test-password"}, 200); err != nil {
+		return err
+	}
+	data, err = call("GET", comments, nil, 200)
+	if err != nil {
+		return err
+	}
+	_ = json.Unmarshal(data, &page)
+	if page.TotalElements != 0 {
+		return fmt.Errorf("댓글 삭제 실패")
+	}
+	// 서명 위조는 쓰기 요청에서 거부됩니다.
+	u, _ := http.NewRequest("GET", base, nil)
+	jar.SetCookies(u.URL, []*http.Cookie{{Name: "feedback_visitor", Value: strings.Repeat("a", 64) + ".forged", Path: "/"}})
+	if _, err = call("POST", likes, nil, 409); err != nil {
+		return err
+	}
+	fmt.Println("익명 HTTP 검증 통과: 12개 동시 좋아요 1표, 중복 취소, 댓글 생성/수정/삭제, 비밀번호 실패, 비밀값 비노출, 쿠키 위조 거부")
 	return nil
 }

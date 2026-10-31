@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/NARUBROWN/tech-blog-spine/internal/config"
+	"github.com/NARUBROWN/tech-blog-spine/migrations"
 	"github.com/go-sql-driver/mysql"
 )
 
@@ -23,6 +24,11 @@ func main() {
 		log.Fatal("DB 설정 실패")
 	}
 	defer db.Close()
+	defer func() {
+		if err := migrations.Feedback(db); err != nil {
+			log.Fatal("댓글 및 좋아요 마이그레이션 실패: ", err)
+		}
+	}()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	var typ string

@@ -66,6 +66,9 @@ for path in ['/api/v1/category/list','/api/v1/post/search/recent?keyword=LLM&pag
  with urllib.request.urlopen(base+path,timeout=10) as r:json.load(r)
 PY
 sed -i "s|127.0.0.1:$old_port/api/|127.0.0.1:$port/api/|g" "$nginx_file"
+if ! grep -q 'X-Feedback-IP' "$nginx_file"; then
+ sed -i '/proxy_pass http:\/\/127.0.0.1:/a\        proxy_set_header X-Feedback-IP $remote_addr;' "$nginx_file"
+fi
 nginx -t
 systemctl reload nginx
 verified=false

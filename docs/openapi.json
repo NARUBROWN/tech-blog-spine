@@ -47,6 +47,82 @@
         ],
         "type": "object"
       },
+      "Comment": {
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "id": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content",
+          "createdAt",
+          "id",
+          "nickname",
+          "updatedAt"
+        ],
+        "type": "object"
+      },
+      "CommentPage": {
+        "properties": {
+          "content": {
+            "items": {
+              "$ref": "#/components/schemas/Comment"
+            },
+            "type": "array"
+          },
+          "number": {
+            "format": "int32",
+            "type": "integer"
+          },
+          "totalElements": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "totalPages": {
+            "format": "int32",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "content",
+          "number",
+          "totalElements",
+          "totalPages"
+        ],
+        "type": "object"
+      },
+      "CommentRequest": {
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "nickname": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "content",
+          "nickname",
+          "password"
+        ],
+        "type": "object"
+      },
       "Config": {
         "properties": {
           "accessTokenTTL": {
@@ -477,6 +553,34 @@
         ],
         "type": "object"
       },
+      "ReactionState": {
+        "properties": {
+          "anonymousCount": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "count": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "liked": {
+            "type": "boolean"
+          },
+          "users": {
+            "items": {
+              "$ref": "#/components/schemas/UserResponse"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "anonymousCount",
+          "count",
+          "liked",
+          "users"
+        ],
+        "type": "object"
+      },
       "TagRequest": {
         "properties": {
           "tagNames": {
@@ -623,6 +727,26 @@
           "username"
         ],
         "type": "object"
+      },
+      "Visitor": {
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "network": {
+            "type": "string"
+          },
+          "userID": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "network",
+          "userID"
+        ],
+        "type": "object"
       }
     }
   },
@@ -742,6 +866,158 @@
         "x-spine-source": "src/categories/module.go:11"
       }
     },
+    "/api/v1/comments/post/{id}": {
+      "get": {
+        "operationId": "CommentsController_List",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentPage"
+                }
+              }
+            },
+            "description": "Response status is determined by httpx.ResponseOptions at runtime."
+          }
+        },
+        "x-spine-analysis": "static-source",
+        "x-spine-handler": "(*CommentsController).List",
+        "x-spine-return-types": [
+          "httpx.Response[CommentPage]",
+          "error"
+        ],
+        "x-spine-source": "src/comments/comments_route.go:12",
+        "x-spine-unresolved-parameters": [
+          "q:query.Values@query",
+          "h:header.Values@header"
+        ]
+      },
+      "post": {
+        "operationId": "CommentsController_Create",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "Response status is determined by the Spine handler contract."
+          }
+        },
+        "x-spine-analysis": "static-source",
+        "x-spine-handler": "(*CommentsController).Create",
+        "x-spine-return-types": [
+          "error"
+        ],
+        "x-spine-source": "src/comments/comments_route.go:13",
+        "x-spine-unresolved-parameters": [
+          "h:header.Values@header"
+        ]
+      }
+    },
+    "/api/v1/comments/{id}": {
+      "delete": {
+        "operationId": "CommentsController_Delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "Response status is determined by the Spine handler contract."
+          }
+        },
+        "x-spine-analysis": "static-source",
+        "x-spine-handler": "(*CommentsController).Delete",
+        "x-spine-return-types": [
+          "error"
+        ],
+        "x-spine-source": "src/comments/comments_route.go:15",
+        "x-spine-unresolved-parameters": [
+          "h:header.Values@header"
+        ]
+      },
+      "patch": {
+        "operationId": "CommentsController_Update",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "default": {
+            "description": "Response status is determined by the Spine handler contract."
+          }
+        },
+        "x-spine-analysis": "static-source",
+        "x-spine-handler": "(*CommentsController).Update",
+        "x-spine-return-types": [
+          "error"
+        ],
+        "x-spine-source": "src/comments/comments_route.go:14",
+        "x-spine-unresolved-parameters": [
+          "h:header.Values@header"
+        ]
+      }
+    },
     "/api/v1/image": {
       "post": {
         "operationId": "ImagesController_Upload",
@@ -812,17 +1088,25 @@
         ],
         "responses": {
           "default": {
-            "description": "Response status is determined by the Spine handler contract."
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReactionState"
+                }
+              }
+            },
+            "description": "Response status is determined by httpx.ResponseOptions at runtime."
           }
         },
         "x-spine-analysis": "static-source",
         "x-spine-handler": "(*LikesController).Unlike",
         "x-spine-return-types": [
+          "httpx.Response[comments.ReactionState]",
           "error"
         ],
-        "x-spine-source": "src/likes/module.go:11",
+        "x-spine-source": "src/likes/module.go:12",
         "x-spine-unresolved-parameters": [
-          "spineCtx:spinecontext.Ctx@value"
+          "h:header.Values@header"
         ]
       },
       "get": {
@@ -859,7 +1143,10 @@
           "httpx.Response[[]model.UserResponse]",
           "error"
         ],
-        "x-spine-source": "src/likes/module.go:12"
+        "x-spine-source": "src/likes/module.go:13",
+        "x-spine-unresolved-parameters": [
+          "h:header.Values@header"
+        ]
       },
       "post": {
         "operationId": "LikesController_Like",
@@ -876,17 +1163,63 @@
         ],
         "responses": {
           "default": {
-            "description": "Response status is determined by the Spine handler contract."
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReactionState"
+                }
+              }
+            },
+            "description": "Response status is determined by httpx.ResponseOptions at runtime."
           }
         },
         "x-spine-analysis": "static-source",
         "x-spine-handler": "(*LikesController).Like",
         "x-spine-return-types": [
+          "httpx.Response[comments.ReactionState]",
+          "error"
+        ],
+        "x-spine-source": "src/likes/module.go:11",
+        "x-spine-unresolved-parameters": [
+          "h:header.Values@header"
+        ]
+      }
+    },
+    "/api/v1/like/{postId}/state": {
+      "get": {
+        "operationId": "LikesController_State",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "postId",
+            "required": true,
+            "schema": {
+              "format": "int64",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReactionState"
+                }
+              }
+            },
+            "description": "Response status is determined by httpx.ResponseOptions at runtime."
+          }
+        },
+        "x-spine-analysis": "static-source",
+        "x-spine-handler": "(*LikesController).State",
+        "x-spine-return-types": [
+          "httpx.Response[comments.ReactionState]",
           "error"
         ],
         "x-spine-source": "src/likes/module.go:10",
         "x-spine-unresolved-parameters": [
-          "spineCtx:spinecontext.Ctx@value"
+          "h:header.Values@header"
         ]
       }
     },
@@ -1283,7 +1616,7 @@
         "x-spine-return-types": [
           "httpx.Response[map[string]string]"
         ],
-        "x-spine-source": "internal/application/application.go:127"
+        "x-spine-source": "internal/application/application.go:131"
       }
     }
   },

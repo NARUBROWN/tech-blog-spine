@@ -7,6 +7,7 @@ func Register(app spine.App) error {
 	app.Constructor(
 		NewLikesController,
 	)
+	app.Route("GET", "/api/v1/like/:postId/state", (*LikesController).State)
 	app.Route("POST", "/api/v1/like/:postId", (*LikesController).Like)
 	app.Route("DELETE", "/api/v1/like/:postId", (*LikesController).Unlike)
 	app.Route("GET", "/api/v1/like/:postId", (*LikesController).Users)
