@@ -1,0 +1,4 @@
+module = "github.com/NARUBROWN/tech-blog-spine"
+entrypoint = "."
+composition = "./internal/application"
+port = 8080

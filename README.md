@@ -1,0 +1,130 @@
+# Tech Blog Spine API
+
+기존 `tech-blog-springboot`의 HTTP 계약과 도메인 동작을 Go 기반 [Spine](https://github.com/NARUBROWN/spine) 애플리케이션으로 옮긴 프로젝트입니다. 프로젝트 골격과 리소스 모듈은 `spine-cli 0.1.1`의 `spine new`, `spine generate resource`로 생성했습니다.
+
+## 이전된 기능
+
+- 포스트 CRUD, 슬러그, SEO 필드, 조회수와 좋아요 카운터
+- 카테고리와 태그 및 포스트-태그 관계
+- HMAC-SHA256 JWT 액세스/리프레시 토큰과 HTTP-only 쿠키
+- Redis 리프레시 토큰 저장 및 액세스 토큰 재발급
+- MySQL 저장소와 트랜잭션 기반 관계 변경
+- PNG/JPEG/WebP 형식·20MB 제한을 서버에서 검사하는 이미지 저장
+- Spine CORS 및 인증 인터셉터
+- Spine 정적 실행 계약, OpenAPI export, snapshot/diff
+
+원본 Spring 프로젝트는 비교와 데이터 이전을 위해 상위 디렉터리의 `tech-blog-springboot`에 그대로 보존되어 있습니다.
+
+## 빠른 실행
+
+Go 1.25.5 이상, MySQL 8.4, Redis 7 이상이 필요합니다.
+
+```bash
+cp .env.example .env
+# .env의 MYSQL_PASSWORD와 32바이트 이상 JWT_SECRET을 변경
+set -a; source .env; set +a
+mysql -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" < migrations/001_init.sql
+go run .
+```
+
+전체 로컬 스택은 Docker Compose로 실행할 수 있습니다.
+
+```bash
+cp .env.example .env
+# .env의 JWT_SECRET을 반드시 변경
+docker compose up --build
+curl http://localhost:8080/health
+```
+
+`COOKIE_SECURE=true`가 기본값입니다. 로컬 HTTP 확인에서만 `false`를 사용하고 HTTPS 운영 환경에서는 반드시 `true`를 유지하세요.
+
+## 환경변수
+
+| 이름 | 필수 | 기본값 | 설명 |
+| --- | --- | --- | --- |
+| `MYSQL_DATABASE` | 예 | 없음 | MySQL 데이터베이스 |
+| `MYSQL_USER` | 예 | 없음 | MySQL 사용자 |
+| `MYSQL_PASSWORD` | 예 | 없음 | MySQL 비밀번호 |
+| `JWT_SECRET` | 예 | 없음 | 32바이트 이상 JWT 서명 키 |
+| `MYSQL_HOST` | 아니요 | `127.0.0.1` | MySQL 호스트 |
+| `MYSQL_PORT` | 아니요 | `3306` | MySQL 포트 |
+| `REDIS_ADDR` | 아니요 | `127.0.0.1:6379` | Redis 주소 |
+| `REDIS_PASSWORD` | 아니요 | 빈 값 | Redis 비밀번호 |
+| `REDIS_DB` | 아니요 | `0` | Redis DB 번호 |
+| `REDIS_TLS` | 아니요 | `false` | Redis TLS 사용 여부 |
+| `IMAGE_UPLOAD_DIR` | 아니요 | `./images` | 이미지 저장 경로 |
+| `ALLOWED_ORIGINS` | 아니요 | `http://localhost:5173` | 쉼표로 구분한 CORS origin |
+| `COOKIE_SECURE` | 아니요 | `true` | Secure 쿠키 사용 여부 |
+| `SPINE_PORT` | 아니요 | `8080` | HTTP 포트 |
+
+비밀값은 소스나 이미지에 포함하지 않습니다. 원본 Spring 개발 설정의 평문 DB/JWT 값도 새 애플리케이션으로 복사하지 않았습니다.
+
+## 기존 Spring 데이터로 전환
+
+기존 JPA 테이블명과 컬럼명을 유지했으므로 새 애플리케이션의 MySQL 환경변수를 기존 `tech_blog` 데이터베이스로 지정할 수 있습니다. 실제 전환 전에는 반드시 데이터베이스와 이미지 디렉터리를 백업하고 staging 복제본에서 먼저 확인하세요.
+
+`migrations/001_init.sql`은 새 환경용 스키마입니다. 기존 운영 데이터베이스에는 그대로 실행하지 말고 현재 인덱스·제약조건과 비교해 별도 변경 스크립트로 적용해야 합니다. Spring Data Redis의 기존 hash 직렬화와 새 문자열 토큰 형식은 호환되지 않으므로 Spine은 `spine:refreshToken:*` 별도 키를 사용하며 전환 시 모든 사용자가 다시 로그인해야 합니다. 기존 Redis 키 전체를 삭제하지 않습니다.
+
+원본 `application.properties`에 노출된 DB/JWT 값은 이미 유출된 비밀로 간주해 운영 전 반드시 교체하세요.
+
+## API
+
+기본 경로는 `/api/v1`입니다.
+
+| 영역 | 메서드 | 경로 | 인증 |
+| --- | --- | --- | --- |
+| Auth | POST | `/auth/login` | 공개 |
+| Auth | POST | `/auth/logout` | 공개 |
+| Users | POST | `/user/author-signup` | 관리자 |
+| Users | POST | `/user/admin-signup` | 관리자 |
+| Users | POST | `/user/normal-signup` | 공개 |
+| Users | PATCH | `/user/{id}` | 필요 |
+| Posts | POST | `/post?categoryId={id}` | 필요 |
+| Posts | PATCH | `/post?postId={id}&categoryId={id}` | 필요 |
+| Posts | GET | `/post?categoryName={name}&page=0&size=20` | 공개 |
+| Posts | GET | `/post/slug/{slug}` | 공개 |
+| Posts | GET | `/post/id/{id}` | 공개 |
+| Posts | DELETE | `/post/{id}` | 필요 |
+| Posts | POST | `/post/view-count/{id}` | 공개 |
+| Posts | GET | `/post/search/recent?keyword={keyword}&page=0&size=20` | 공개 |
+| Categories | POST | `/category?name={name}` | 필요 |
+| Categories | GET | `/category/list` | 공개 |
+| Likes | POST | `/like/{postId}` | 필요 |
+| Likes | DELETE | `/like/{postId}` | 필요 |
+| Likes | GET | `/like/{postId}` | 공개 |
+| Images | POST | `/image` (`multipart/form-data`, `file`) | 공개, 원본 계약 유지 |
+| Images | GET | `/image/{uuid}` | 공개 |
+
+작성자와 관리자 계정은 기존 관리자만 생성할 수 있습니다. 일반 가입은 공개합니다. 글 작성은 작성자 또는 관리자, 수정과 삭제는 해당 글 작성자 또는 관리자, 카테고리 추가는 관리자만 가능합니다. 공개 작성자 정보에는 역할을 노출하지 않고, 프로필 수정 응답에는 자신의 역할을 포함합니다. 검색은 게시글 중복 없는 페이지 응답을 반환합니다.
+
+## Spine CLI 계약 검증
+
+```bash
+spine inspect
+spine contract check --json
+spine contract diff
+spine verify
+```
+
+`spine verify`는 정적 계약, 포맷, `go vet`, `go test`를 검증합니다. MySQL/Redis 연결, 실제 listener, 배포 환경 동작은 별도의 통합 검증 범위입니다.
+
+## 구조
+
+```text
+internal/application/  # Spine composition root와 boot options
+internal/blog/         # 유스케이스와 이미지 저장
+internal/config/       # 환경변수 구성
+internal/model/        # 도메인과 API DTO
+internal/security/     # JWT, Redis 토큰 저장, 인증 인터셉터
+internal/store/        # MySQL 저장소와 트랜잭션
+src/*/                 # spine-cli가 만든 HTTP resource 모듈
+migrations/            # MySQL 스키마
+```
+
+## GitHub Actions에서 OCI 배포
+
+main push는 단위 테스트, race/vet/포맷 검사, 실제 MySQL 8.0 및 Redis 7 통합 테스트, Linux amd64 빌드 후 OCI 배포를 수행합니다. PR은 검증까지만 실행합니다. 운영 비밀값은 OCI의 root 전용 `/home/ubuntu/blog-spine/runtime.env`에 유지하고 GitHub에는 전용 SSH 키와 검증된 known_hosts만 보관합니다.
+
+배포 스크립트는 기존 이미지 바인드 마운트를 유지하고 권한 enum에 ROLE_AUTHOR만 추가합니다. 새 포트를 검사한 다음 Nginx를 전환하며, 전환 실패 시 이전 설정으로 복구합니다. 성공 전에는 이전 컨테이너를 중지하지 않습니다. `/health` 외에 게시글 목록과 검색의 DB 조회도 검사합니다. 누락된 기존 이미지 31건의 메타데이터는 삭제하지 않습니다. 사용자가 확인한 원인은 과거 컨테이너 이미지 저장소의 마운트 누락입니다.
+
+운영 상태: `/home/ubuntu/blog-spine/active-sha`, `active-port`. 릴리스: `/home/ubuntu/blog-spine/releases/<commit>`. 이전 Java 컨테이너 `blog-backend`와 원래 compose는 롤백용으로 보존합니다. 수동 롤백 시 Java 컨테이너를 시작하고 Nginx upstream을 8080으로 복원한 뒤 `nginx -t`와 reload를 실행합니다. DB를 과거 백업으로 덮어쓰지 않습니다.

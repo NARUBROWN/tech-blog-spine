@@ -1,0 +1,96 @@
+name: 검증 및 OCI 배포
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: spine-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: integration-only
+          MYSQL_DATABASE: blog_test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -pintegration-only"
+          --health-interval=10s --health-timeout=5s --health-retries=10
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+        options: --health-cmd="redis-cli ping" --health-interval=5s --health-timeout=3s --health-retries=10
+    env:
+      MYSQL_HOST: 127.0.0.1
+      MYSQL_PORT: '3306'
+      MYSQL_DATABASE: blog_test
+      MYSQL_USER: root
+      MYSQL_PASSWORD: integration-only
+      JWT_SECRET: integration-only-secret-at-least-32-bytes
+      REDIS_ADDR: 127.0.0.1:6379
+      COOKIE_SECURE: 'false'
+      SPINE_PORT: '18089'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: 코드와 회귀 테스트 검증
+        run: |
+          test -z "$(gofmt -l .)"
+          go vet ./...
+          go test -race ./...
+      - name: Linux 실행 파일 빌드
+        run: |
+          mkdir -p dist
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o dist/tech-blog-spine .
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -o dist/migrate ./cmd/migrate
+      - name: MySQL 및 Redis 통합 검증
+        run: |
+          docker exec ${{ job.services.mysql.id }} sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot blog_test' < migrations/001_init.sql
+          go run ./scripts/integration.go
+      - name: 배포 파일 준비
+        run: |
+          cp deploy/Dockerfile deploy/deploy.sh dist/
+          cd dist
+          sha256sum tech-blog-spine migrate > SHA256SUMS
+          tar czf ../release.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: release.tar.gz
+          retention-days: 7
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+      - name: OCI 접속 설정
+        env:
+          DEPLOY_KEY: ${{ secrets.OCI_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.OCI_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: OCI에 전달하고 배포
+        env:
+          OCI_HOST: ${{ vars.OCI_HOST }}
+          OCI_USER: ${{ vars.OCI_USER }}
+        run: |
+          remote="/home/ubuntu/blog-spine/releases/$GITHUB_SHA"
+          ssh -o BatchMode=yes "$OCI_USER@$OCI_HOST" "mkdir -p '$remote'"
+          scp release.tar.gz "$OCI_USER@$OCI_HOST:$remote/release.tar.gz"
+          ssh -o BatchMode=yes "$OCI_USER@$OCI_HOST" "cd '$remote' && tar xzf release.tar.gz && sudo bash deploy.sh '$GITHUB_SHA'"

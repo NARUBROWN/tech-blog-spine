@@ -1,0 +1,709 @@
+{
+  "schema_version": "spine.contract/v1alpha1",
+  "analysis_mode": "static-source",
+  "analysis_complete": true,
+  "module": "github.com/NARUBROWN/tech-blog-spine",
+  "entrypoint": ".",
+  "composition": "./internal/application",
+  "constructors": [
+    {
+      "target": "NewConfig",
+      "source": "internal/application/application.go:96"
+    },
+    {
+      "target": "ProvideMySQLStore",
+      "dependencies": [
+        "config.Config"
+      ],
+      "source": "internal/application/application.go:96"
+    },
+    {
+      "target": "ProvideRedisRefreshTokenStore",
+      "dependencies": [
+        "config.Config"
+      ],
+      "source": "internal/application/application.go:96"
+    },
+    {
+      "target": "ProvideTokenManager",
+      "dependencies": [
+        "config.Config"
+      ],
+      "source": "internal/application/application.go:96"
+    },
+    {
+      "target": "ProvideImageStorage",
+      "dependencies": [
+        "config.Config"
+      ],
+      "source": "internal/application/application.go:96"
+    },
+    {
+      "target": "ProvideBlogService",
+      "dependencies": [
+        "*store.MySQLStore",
+        "*security.RedisRefreshTokenStore",
+        "*security.TokenManager",
+        "*blog.ImageStorage"
+      ],
+      "source": "internal/application/application.go:96"
+    },
+    {
+      "target": "ProvideAuthInterceptor",
+      "dependencies": [
+        "*security.TokenManager",
+        "*security.RedisRefreshTokenStore"
+      ],
+      "source": "internal/application/application.go:96"
+    },
+    {
+      "target": "NewCORSInterceptor",
+      "dependencies": [
+        "config.Config"
+      ],
+      "source": "internal/application/application.go:96"
+    },
+    {
+      "target": "NewImagesController",
+      "dependencies": [
+        "*blog.Service"
+      ],
+      "source": "src/images/module.go:7"
+    },
+    {
+      "target": "NewLikesController",
+      "dependencies": [
+        "*blog.Service"
+      ],
+      "source": "src/likes/module.go:7"
+    },
+    {
+      "target": "NewCategoriesController",
+      "dependencies": [
+        "*blog.Service"
+      ],
+      "source": "src/categories/module.go:7"
+    },
+    {
+      "target": "NewPostsController",
+      "dependencies": [
+        "*blog.Service"
+      ],
+      "source": "src/posts/module.go:7"
+    },
+    {
+      "target": "NewUsersController",
+      "dependencies": [
+        "*blog.Service"
+      ],
+      "source": "src/users/module.go:7"
+    },
+    {
+      "target": "NewAuthController",
+      "dependencies": [
+        "*blog.Service"
+      ],
+      "source": "src/auth/module.go:7"
+    },
+    {
+      "target": "NewHealthController",
+      "source": "internal/application/application.go:126"
+    }
+  ],
+  "http": [
+    {
+      "method": "DELETE",
+      "path": "/api/v1/like/:postId",
+      "handler": "(*LikesController).Unlike",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "postID",
+          "type": "path.Int",
+          "binding": "path",
+          "key": "postId"
+        },
+        {
+          "name": "spineCtx",
+          "type": "spinecontext.Ctx",
+          "binding": "value"
+        }
+      ],
+      "returns": [
+        "error"
+      ],
+      "source": "src/likes/module.go:11"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/v1/post/:id",
+      "handler": "(*PostsController).Delete",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "id",
+          "type": "path.Int",
+          "binding": "path",
+          "key": "id"
+        },
+        {
+          "name": "spineCtx",
+          "type": "spinecontext.Ctx",
+          "binding": "value"
+        }
+      ],
+      "returns": [
+        "error"
+      ],
+      "source": "src/posts/module.go:14"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/category/list",
+      "handler": "(*CategoriesController).List",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        }
+      ],
+      "returns": [
+        "httpx.Response[[]model.Category]",
+        "error"
+      ],
+      "source": "src/categories/module.go:11"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/image/:uuid",
+      "handler": "(*ImagesController).Get",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "publicID",
+          "type": "path.String",
+          "binding": "path",
+          "key": "uuid"
+        }
+      ],
+      "returns": [
+        "httpx.Binary",
+        "error"
+      ],
+      "source": "src/images/module.go:11"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/like/:postId",
+      "handler": "(*LikesController).Users",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "postID",
+          "type": "path.Int",
+          "binding": "path",
+          "key": "postId"
+        }
+      ],
+      "returns": [
+        "httpx.Response[[]model.UserResponse]",
+        "error"
+      ],
+      "source": "src/likes/module.go:12"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/post/id/:id",
+      "handler": "(*PostsController).GetByID",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "id",
+          "type": "path.Int",
+          "binding": "path",
+          "key": "id"
+        }
+      ],
+      "returns": [
+        "httpx.Response[model.PostResponse]",
+        "error"
+      ],
+      "source": "src/posts/module.go:13"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/post/search/recent",
+      "handler": "(*PostsController).SearchRecent",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "values",
+          "type": "query.Values",
+          "binding": "query"
+        }
+      ],
+      "returns": [
+        "httpx.Response[model.PageResponse[model.PostResponse]]",
+        "error"
+      ],
+      "source": "src/posts/module.go:17"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/post/slug/:slug",
+      "handler": "(*PostsController).GetBySlug",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "slug",
+          "type": "path.String",
+          "binding": "path",
+          "key": "slug"
+        }
+      ],
+      "returns": [
+        "httpx.Response[model.PostResponse]",
+        "error"
+      ],
+      "source": "src/posts/module.go:12"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/post",
+      "handler": "(*PostsController).List",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "values",
+          "type": "query.Values",
+          "binding": "query"
+        }
+      ],
+      "returns": [
+        "httpx.Response[model.PageResponse[model.PostResponse]]",
+        "error"
+      ],
+      "source": "src/posts/module.go:16"
+    },
+    {
+      "method": "GET",
+      "path": "/health",
+      "handler": "(*HealthController).Get",
+      "returns": [
+        "httpx.Response[map[string]string]"
+      ],
+      "source": "internal/application/application.go:127"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/post",
+      "handler": "(*PostsController).Modify",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "request",
+          "type": "*model.PostRequest",
+          "binding": "body"
+        },
+        {
+          "name": "values",
+          "type": "query.Values",
+          "binding": "query"
+        },
+        {
+          "name": "spineCtx",
+          "type": "spinecontext.Ctx",
+          "binding": "value"
+        }
+      ],
+      "returns": [
+        "httpx.Response[model.PostEditResponse]",
+        "error"
+      ],
+      "source": "src/posts/module.go:11"
+    },
+    {
+      "method": "PATCH",
+      "path": "/api/v1/user/:id",
+      "handler": "(*UsersController).Update",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "id",
+          "type": "path.Int",
+          "binding": "path",
+          "key": "id"
+        },
+        {
+          "name": "request",
+          "type": "*model.UserRequest",
+          "binding": "body"
+        },
+        {
+          "name": "spineCtx",
+          "type": "spinecontext.Ctx",
+          "binding": "value"
+        }
+      ],
+      "returns": [
+        "httpx.Response[model.UserResponse]",
+        "error"
+      ],
+      "source": "src/users/module.go:13"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "handler": "(*AuthController).Login",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "request",
+          "type": "*model.LoginRequest",
+          "binding": "body"
+        }
+      ],
+      "returns": [
+        "httpx.Response[model.LoginResponse]",
+        "error"
+      ],
+      "source": "src/auth/module.go:10"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/auth/logout",
+      "handler": "(*AuthController).Logout",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "headers",
+          "type": "header.Values",
+          "binding": "header"
+        }
+      ],
+      "returns": [
+        "httpx.Response[map[string]string]"
+      ],
+      "source": "src/auth/module.go:11"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/category",
+      "handler": "(*CategoriesController).Create",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "values",
+          "type": "query.Values",
+          "binding": "query"
+        },
+        {
+          "name": "spineCtx",
+          "type": "spinecontext.Ctx",
+          "binding": "value"
+        }
+      ],
+      "returns": [
+        "error"
+      ],
+      "source": "src/categories/module.go:10"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/image",
+      "handler": "(*ImagesController).Upload",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "files",
+          "type": "multipart.UploadedFiles",
+          "binding": "value"
+        }
+      ],
+      "returns": [
+        "httpx.Response[model.ImageUploadResponse]",
+        "error"
+      ],
+      "source": "src/images/module.go:10"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/like/:postId",
+      "handler": "(*LikesController).Like",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "postID",
+          "type": "path.Int",
+          "binding": "path",
+          "key": "postId"
+        },
+        {
+          "name": "spineCtx",
+          "type": "spinecontext.Ctx",
+          "binding": "value"
+        }
+      ],
+      "returns": [
+        "error"
+      ],
+      "source": "src/likes/module.go:10"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/post/view-count/:id",
+      "handler": "(*PostsController).IncrementViewCount",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "id",
+          "type": "path.Int",
+          "binding": "path",
+          "key": "id"
+        }
+      ],
+      "returns": [
+        "error"
+      ],
+      "source": "src/posts/module.go:15"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/post",
+      "handler": "(*PostsController).Create",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "request",
+          "type": "*model.PostRequest",
+          "binding": "body"
+        },
+        {
+          "name": "values",
+          "type": "query.Values",
+          "binding": "query"
+        },
+        {
+          "name": "spineCtx",
+          "type": "spinecontext.Ctx",
+          "binding": "value"
+        }
+      ],
+      "returns": [
+        "error"
+      ],
+      "source": "src/posts/module.go:10"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/user/admin-signup",
+      "handler": "(*UsersController).AdminSignup",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "request",
+          "type": "*model.UserRequest",
+          "binding": "body"
+        },
+        {
+          "name": "spineCtx",
+          "type": "spinecontext.Ctx",
+          "binding": "value"
+        }
+      ],
+      "returns": [
+        "error"
+      ],
+      "source": "src/users/module.go:11"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/user/author-signup",
+      "handler": "(*UsersController).AuthorSignup",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "request",
+          "type": "*model.UserRequest",
+          "binding": "body"
+        },
+        {
+          "name": "spineCtx",
+          "type": "spinecontext.Ctx",
+          "binding": "value"
+        }
+      ],
+      "returns": [
+        "error"
+      ],
+      "source": "src/users/module.go:10"
+    },
+    {
+      "method": "POST",
+      "path": "/api/v1/user/normal-signup",
+      "handler": "(*UsersController).NormalSignup",
+      "parameters": [
+        {
+          "name": "ctx",
+          "type": "context.Context",
+          "binding": "context"
+        },
+        {
+          "name": "request",
+          "type": "*model.UserRequest",
+          "binding": "body"
+        }
+      ],
+      "returns": [
+        "error"
+      ],
+      "source": "src/users/module.go:12"
+    }
+  ],
+  "interceptors": [
+    {
+      "target": "(*cors.CORSInterceptor)(nil)",
+      "scope": "boot.InterceptorHTTP",
+      "source": "internal/application/application.go:106"
+    },
+    {
+      "target": "(*security.AuthInterceptor)(nil)",
+      "scope": "boot.InterceptorHTTP",
+      "source": "internal/application/application.go:107"
+    }
+  ],
+  "consumers": [],
+  "websockets": [],
+  "resources": [
+    {
+      "package": "auth",
+      "import": "github.com/NARUBROWN/tech-blog-spine/src/auth",
+      "source": "internal/application/application.go:123"
+    },
+    {
+      "package": "categories",
+      "import": "github.com/NARUBROWN/tech-blog-spine/src/categories",
+      "source": "internal/application/application.go:114"
+    },
+    {
+      "package": "images",
+      "import": "github.com/NARUBROWN/tech-blog-spine/src/images",
+      "source": "internal/application/application.go:108"
+    },
+    {
+      "package": "likes",
+      "import": "github.com/NARUBROWN/tech-blog-spine/src/likes",
+      "source": "internal/application/application.go:111"
+    },
+    {
+      "package": "posts",
+      "import": "github.com/NARUBROWN/tech-blog-spine/src/posts",
+      "source": "internal/application/application.go:117"
+    },
+    {
+      "package": "users",
+      "import": "github.com/NARUBROWN/tech-blog-spine/src/users",
+      "source": "internal/application/application.go:120"
+    }
+  ],
+  "configuration": [
+    {
+      "path": "boot.Options.Address",
+      "value": "address",
+      "source": "internal/application/application.go:134"
+    },
+    {
+      "path": "boot.Options.EnableGracefulShutdown",
+      "value": "true",
+      "source": "internal/application/application.go:135"
+    },
+    {
+      "path": "boot.Options.HTTP.MaxBodyBytes",
+      "value": "21 \u003c\u003c 20",
+      "source": "internal/application/application.go:136"
+    },
+    {
+      "path": "boot.Options.HTTP",
+      "value": "configured",
+      "source": "internal/application/application.go:136"
+    }
+  ],
+  "diagnostics": []
+}
