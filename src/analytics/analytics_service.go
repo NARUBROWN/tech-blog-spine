@@ -183,7 +183,7 @@ func (s *AnalyticsService) Start(ctx context.Context, h header.Values, r VisitRe
 	if tokenErr != nil && s.refresh != nil {
 		raw := security.CookieFromHeader(h.Get("Cookie"), "refreshToken")
 		if refreshed, e := s.tokens.Parse(raw, security.RefreshToken); e == nil {
-			if stored, e := s.refresh.Get(ctx, refreshed.UserID); e == nil && hmac.Equal([]byte(stored), []byte(raw)) {
+			if stored, e := s.refresh.Get(ctx, refreshed.UserID, raw); e == nil && hmac.Equal([]byte(stored), []byte(raw)) {
 				claims = refreshed
 				tokenErr = nil
 			}

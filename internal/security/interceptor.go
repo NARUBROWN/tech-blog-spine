@@ -59,12 +59,11 @@ func (i *AuthInterceptor) PreHandle(ctx core.ExecutionContext, _ core.HandlerMet
 		i.addCookies(ctx, i.tokens.ClearCookies())
 		return httperr.Unauthorized("인증이 필요합니다.")
 	}
-	stored, err := i.store.Get(ctx.Context(), claims.UserID)
+	stored, err := i.store.Get(ctx.Context(), claims.UserID, refreshToken)
 	if err != nil {
 		return httperr.InternalServerError("인증 저장소를 확인할 수 없습니다.")
 	}
 	if len(stored) != len(refreshToken) || subtle.ConstantTimeCompare([]byte(stored), []byte(refreshToken)) != 1 {
-		_ = i.store.Delete(ctx.Context(), claims.UserID)
 		i.addCookies(ctx, i.tokens.ClearCookies())
 		return httperr.Unauthorized("인증이 필요합니다.")
 	}

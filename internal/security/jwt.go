@@ -2,6 +2,7 @@ package security
 
 import (
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
@@ -25,6 +26,7 @@ const (
 )
 
 type Claims struct {
+	ID        string    `json:"jti,omitempty"`
 	Subject   string    `json:"sub"`
 	UserID    int64     `json:"userId"`
 	TokenKind TokenKind `json:"tokenType"`
@@ -116,10 +118,19 @@ func (m *TokenManager) create(userID int64, username string, kind TokenKind, ttl
 	if err != nil {
 		return "", err
 	}
-	payload, err := json.Marshal(Claims{
+	claims := Claims{
 		Subject: username, UserID: userID, TokenKind: kind,
 		IssuedAt: now.Unix(), ExpiresAt: now.Add(ttl).Unix(),
-	})
+	}
+	if kind == RefreshToken {
+		// 같은 초에 로그인해도 브라우저마다 독립된 리프레시 토큰을 발급합니다.
+		var nonce [32]byte
+		if _, err := rand.Read(nonce[:]); err != nil {
+			return "", err
+		}
+		claims.ID = base64.RawURLEncoding.EncodeToString(nonce[:])
+	}
+	payload, err := json.Marshal(claims)
 	if err != nil {
 		return "", err
 	}

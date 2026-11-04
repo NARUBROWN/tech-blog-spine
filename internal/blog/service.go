@@ -55,7 +55,7 @@ func (s *Service) Login(ctx context.Context, request model.LoginRequest) (model.
 
 func (s *Service) Logout(ctx context.Context, refreshToken string) []httpx.Cookie {
 	if claims, err := s.tokens.ParseSigned(refreshToken, security.RefreshToken); err == nil {
-		_ = s.tokenStore.Delete(ctx, claims.UserID)
+		_ = s.tokenStore.Delete(ctx, claims.UserID, refreshToken)
 	}
 	return s.tokens.ClearCookies()
 }

@@ -3,6 +3,7 @@ package security
 import (
 	"bufio"
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -16,8 +17,8 @@ import (
 
 type RefreshTokenStore interface {
 	Save(context.Context, int64, string, time.Duration) error
-	Get(context.Context, int64) (string, error)
-	Delete(context.Context, int64) error
+	Get(context.Context, int64, string) (string, error)
+	Delete(context.Context, int64, string) error
 }
 
 type RedisRefreshTokenStore struct {
@@ -35,14 +36,21 @@ func NewRedisRefreshTokenStore(config config.Config) *RedisRefreshTokenStore {
 }
 
 func (s *RedisRefreshTokenStore) Save(ctx context.Context, userID int64, token string, ttl time.Duration) error {
-	_, err := s.command(ctx, "SET", refreshKey(userID), token, "EX", strconv.FormatInt(int64(ttl.Seconds()), 10))
+	_, err := s.command(ctx, "SET", refreshSessionKey(userID, token), token, "EX", strconv.FormatInt(int64(ttl.Seconds()), 10))
 	return err
 }
 
-func (s *RedisRefreshTokenStore) Get(ctx context.Context, userID int64) (string, error) {
-	value, err := s.command(ctx, "GET", refreshKey(userID))
+func (s *RedisRefreshTokenStore) Get(ctx context.Context, userID int64, token string) (string, error) {
+	value, err := s.command(ctx, "GET", refreshSessionKey(userID, token))
 	if err != nil {
 		return "", err
+	}
+	if value == nil {
+		// 배포 전에 발급된 토큰은 기존 계정별 키에서 만료 시점까지 확인합니다.
+		value, err = s.command(ctx, "GET", refreshKey(userID))
+		if err != nil {
+			return "", err
+		}
 	}
 	if value == nil {
 		return "", nil
@@ -54,13 +62,26 @@ func (s *RedisRefreshTokenStore) Get(ctx context.Context, userID int64) (string,
 	return text, nil
 }
 
-func (s *RedisRefreshTokenStore) Delete(ctx context.Context, userID int64) error {
-	_, err := s.command(ctx, "DEL", refreshKey(userID))
+func (s *RedisRefreshTokenStore) Delete(ctx context.Context, userID int64, token string) error {
+	// 비교와 삭제를 한 번에 실행해 다른 로그인에서 저장한 토큰을 삭제하지 않습니다.
+	const script = `
+local deleted = 0
+for _, key in ipairs(KEYS) do
+    if redis.call('GET', key) == ARGV[1] then
+        deleted = deleted + redis.call('DEL', key)
+    end
+end
+return deleted`
+	_, err := s.command(ctx, "EVAL", script, "2", refreshSessionKey(userID, token), refreshKey(userID), token)
 	return err
 }
 
 func refreshKey(userID int64) string {
 	return "spine:refreshToken:" + strconv.FormatInt(userID, 10)
+}
+
+func refreshSessionKey(userID int64, token string) string {
+	return fmt.Sprintf("%s:%x", refreshKey(userID), sha256.Sum256([]byte(token)))
 }
 
 func (s *RedisRefreshTokenStore) command(ctx context.Context, args ...string) (any, error) {

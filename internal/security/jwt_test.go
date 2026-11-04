@@ -1,6 +1,8 @@
 package security
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
@@ -38,6 +40,45 @@ func TestTokenManagerSeparatesAccessAndRefreshTokens(t *testing.T) {
 	}
 	if _, err := manager.ParseSigned(accessToken, AccessToken); err != nil {
 		t.Fatalf("로그아웃용 서명 검증은 만료 토큰도 식별해야 합니다: %v", err)
+	}
+}
+
+func TestRefreshTokensDifferForLoginsInTheSameSecond(t *testing.T) {
+	manager := NewTokenManager(config.Config{
+		JWTSecret:      "a-test-secret-that-is-longer-than-32-bytes",
+		AccessTokenTTL: time.Minute, RefreshTokenTTL: time.Hour,
+	})
+	manager.now = func() time.Time { return time.Date(2026, 11, 4, 10, 0, 0, 0, time.UTC) }
+	first, err := manager.CreateRefreshToken(7, "tester")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := manager.CreateRefreshToken(7, "tester")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first == second {
+		t.Fatal("동시 로그인에 동일한 리프레시 토큰이 발급됐습니다")
+	}
+	for _, token := range []string{first, second} {
+		claims, err := manager.Parse(token, RefreshToken)
+		if err != nil || claims.ID == "" || claims.UserID != 7 {
+			t.Fatalf("독립 세션 토큰이 올바르지 않습니다: %+v, %v", claims, err)
+		}
+	}
+}
+
+func TestTokenManagerAcceptsLegacyRefreshTokenWithoutID(t *testing.T) {
+	manager := NewTokenManager(config.Config{JWTSecret: "a-test-secret-that-is-longer-than-32-bytes"})
+	now := time.Now()
+	payload, err := json.Marshal(Claims{Subject: "tester", UserID: 7, TokenKind: RefreshToken, IssuedAt: now.Unix(), ExpiresAt: now.Add(time.Hour).Unix()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	unsigned := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","typ":"JWT"}`)) + "." + base64.RawURLEncoding.EncodeToString(payload)
+	token := unsigned + "." + base64.RawURLEncoding.EncodeToString(manager.sign(unsigned))
+	if claims, err := manager.Parse(token, RefreshToken); err != nil || claims.ID != "" || claims.UserID != 7 {
+		t.Fatalf("기존 로그인 토큰과의 호환성이 깨졌습니다: %+v, %v", claims, err)
 	}
 }
 

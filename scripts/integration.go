@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/cookiejar"
+	"net/url"
 	"os"
 	"os/exec"
 	"strings"
@@ -216,10 +217,79 @@ func run() error {
 	if err = feedbackIntegration(base, postID); err != nil {
 		return err
 	}
+	if err = refreshIntegration(base, check); err != nil {
+		return err
+	}
 	if err = check(admin, "DELETE", fmt.Sprintf("/api/v1/post/%d", postID), nil, 200); err != nil {
 		return err
 	}
-	fmt.Println("통합 검증 통과: 역할 마이그레이션, 로그인, 권한 차단, 작성자 수정, 관리자 삭제, 프로필 역할, 검색 중복 및 페이지네이션, Quill/Mermaid 본문 보존")
+	fmt.Println("통합 검증 통과: 역할 마이그레이션, 로그인, 권한 차단, 작성자 수정, 관리자 삭제, 프로필 역할, 검색 중복 및 페이지네이션, Quill/Mermaid 본문 보존, 브라우저별 토큰 갱신과 로그아웃")
+	return nil
+}
+
+// 액세스 쿠키를 제거해 대기 없이 실제 HTTP의 리프레시 인증을 검증합니다.
+func refreshIntegration(base string, check func(*http.Client, string, string, any, int) error) error {
+	origin, err := url.Parse(base)
+	if err != nil {
+		return err
+	}
+	newBrowser := func() *http.Client {
+		jar, _ := cookiejar.New(nil)
+		return &http.Client{Jar: jar, Timeout: 10 * time.Second}
+	}
+	first, second := newBrowser(), newBrowser()
+	credentials := map[string]string{"username": "integration-admin", "password": "integration-password"}
+	var tokens []string
+	for _, browser := range []*http.Client{first, second} {
+		if err := check(browser, "POST", "/api/v1/auth/login", credentials, http.StatusOK); err != nil {
+			return err
+		}
+		token := ""
+		for _, cookie := range browser.Jar.Cookies(origin) {
+			if cookie.Name == "refreshToken" {
+				token = cookie.Value
+			}
+		}
+		if token == "" {
+			return fmt.Errorf("로그인에 리프레시 쿠키가 없습니다")
+		}
+		tokens = append(tokens, token)
+	}
+	if tokens[0] == tokens[1] {
+		return fmt.Errorf("두 브라우저에 동일한 리프레시 토큰이 발급됐습니다")
+	}
+	refresh := func(browser *http.Client, want int) error {
+		browser.Jar.SetCookies(origin, []*http.Cookie{{Name: "accessToken", Path: "/", MaxAge: -1}})
+		if err := check(browser, "GET", "/api/v1/admin/analytics?days=1", nil, want); err != nil {
+			return err
+		}
+		if want == http.StatusOK {
+			for _, cookie := range browser.Jar.Cookies(origin) {
+				if cookie.Name == "accessToken" && cookie.Value != "" {
+					return nil
+				}
+			}
+			return fmt.Errorf("리프레시 인증 후 액세스 쿠키가 재발급되지 않았습니다")
+		}
+		return nil
+	}
+	for _, browser := range []*http.Client{first, second} {
+		if err := refresh(browser, http.StatusOK); err != nil {
+			return err
+		}
+	}
+	if err := check(first, "POST", "/api/v1/auth/logout", nil, http.StatusOK); err != nil {
+		return err
+	}
+	// 로그아웃한 토큰의 재사용도 다른 브라우저의 세션을 삭제해서는 안 됩니다.
+	first.Jar.SetCookies(origin, []*http.Cookie{{Name: "refreshToken", Value: tokens[0], Path: "/"}})
+	if err := refresh(first, http.StatusUnauthorized); err != nil {
+		return err
+	}
+	if err := refresh(second, http.StatusOK); err != nil {
+		return err
+	}
+	fmt.Println("리프레시 통합 검증 통과: 독립 로그인, 양쪽 토큰 갱신, 한쪽 로그아웃, 이전 토큰 거부 후 다른 세션 유지")
 	return nil
 }
 
